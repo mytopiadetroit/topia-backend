@@ -37,8 +37,7 @@ tmp/
 # Test directories (if any)
 tests/tmp/
 
-# NPM package-lock (use with caution if using pnpm or yarn)
-package-lock.json
+
 
 # Build output directories (for example, Babel, Webpack)
 .eslintcache

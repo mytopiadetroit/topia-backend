@@ -10,7 +10,7 @@ const UserSchema = new mongoose.Schema({
     year: { type: String, required: true },
   },
   howDidYouHear: { type: String },
-  agreeToTerms: { type: Boolean, required: true },
+ 
   createdAt: { type: Date, default: Date.now },
 });
 
