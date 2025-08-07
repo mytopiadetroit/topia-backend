@@ -37,8 +37,6 @@ tmp/
 # Test directories (if any)
 tests/tmp/
 
-
-
 # Build output directories (for example, Babel, Webpack)
 .eslintcache
 .cache/
