@@ -16,7 +16,12 @@ app.use(cors());
 app.use(helmet());
 app.use(morgan("dev"));
 
-// Custom middleware to handle multipart requests
+// Standard middleware for parsing JSON and URL encoded data
+// These will be skipped automatically for multipart/form-data requests
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Debug middleware to log request details
 app.use((req, res, next) => {
   const contentType = req.get('Content-Type');
   console.log('=== MIDDLEWARE DEBUG ===');
@@ -24,24 +29,7 @@ app.use((req, res, next) => {
   console.log('Method:', req.method);
   console.log('URL:', req.url);
   console.log('=== END MIDDLEWARE DEBUG ===');
-  
-  // Skip JSON parsing for multipart requests
-  if (contentType && contentType.includes('multipart/form-data')) {
-    console.log('Skipping JSON parsing for multipart request');
-    return next();
-  }
-  
-  // Parse JSON for other requests
-  express.json({ limit: '10mb' })(req, res, next);
-});
-
-// URL encoded parsing for non-multipart requests
-app.use((req, res, next) => {
-  const contentType = req.get('Content-Type');
-  if (contentType && contentType.includes('multipart/form-data')) {
-    return next();
-  }
-  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+  next();
 });
 
 // Routes

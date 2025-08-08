@@ -1,0 +1,80 @@
+[
+  {
+    "name": "Golden Teacher Mushroom",
+    "price": 29.99,
+    "description": {
+      "main": "Experience the wisdom of Golden Teacher mushrooms, known for their balanced effects and gentle introduction to the world of psychedelics.",
+      "details": "Golden Teachers are among the most popular mushroom varieties, known for their golden caps and insightful experiences. These mushrooms offer a balanced combination of visual stimulation and spiritual exploration, making them perfect for both beginners and experienced users. Each dose contains approximately 3.5g of dried mushrooms, carefully harvested at peak potency."
+    },
+    "images": ["/uploads/golden-teacher.jpg"],
+    "tags": ["Beginner Friendly", "Spiritual", "Mild"],
+    "category": "dried",
+    "primaryUse": "therapeutic",
+    "hasStock": true
+  },
+  {
+    "name": "Blue Meanie Capsules",
+    "price": 39.99,
+    "description": {
+      "main": "Precisely dosed Blue Meanie capsules for consistent and convenient microdosing.",
+      "details": "Our Blue Meanie capsules contain precisely measured amounts of this potent strain, perfect for microdosing regimens. Each bottle contains 30 capsules with 0.2g of powdered mushrooms per capsule. Blue Meanies are known for their higher psilocybin content, making them excellent for experienced users looking for therapeutic benefits without the full psychedelic experience when taken in microdoses."
+    },
+    "images": ["/uploads/blue-meanie-capsules.jpg"],
+    "tags": ["Microdose", "Potent", "Therapeutic"],
+    "category": "capsules",
+    "primaryUse": "therapeutic",
+    "hasStock": true
+  },
+  {
+    "name": "Cosmic Chocolate Bar",
+    "price": 24.99,
+    "description": {
+      "main": "Delicious dark chocolate infused with premium psilocybin mushrooms for a tasty journey.",
+      "details": "Our Cosmic Chocolate Bar combines rich, organic dark chocolate with carefully measured amounts of psilocybin mushrooms. Each bar contains 3g of mushrooms divided into 8 easily breakable segments for precise dosing. The chocolate helps mask the earthy mushroom flavor while providing a delightful treat that can be enjoyed before your cosmic journey."
+    },
+    "images": ["/uploads/cosmic-chocolate.jpg"],
+    "tags": ["Edible", "Tasty", "Precise Dosing"],
+    "category": "chocolates",
+    "primaryUse": "functional",
+    "hasStock": true
+  },
+  {
+    "name": "Shroomtopia T-Shirt",
+    "price": 19.99,
+    "description": {
+      "main": "Show your Shroomtopia pride with our premium cotton t-shirt featuring our iconic mushroom logo.",
+      "details": "Made from 100% organic cotton, our Shroomtopia t-shirt is both comfortable and stylish. The front features our iconic mushroom logo in vibrant colors, while the back has a subtle 'Expand Your Mind' message. Available in sizes S through XXL, this shirt is perfect for showing your psychedelic pride or as a gift for fellow enthusiasts."
+    },
+    "images": ["/uploads/shroomtopia-tshirt.jpg"],
+    "tags": ["Apparel", "Gift", "Branded"],
+    "category": "merch",
+    "primaryUse": "functional",
+    "hasStock": true
+  },
+  {
+    "name": "Psychedelic Gummy Bears",
+    "price": 34.99,
+    "description": {
+      "main": "Fruity, chewy gummy bears infused with premium psilocybin for a fun and tasty experience.",
+      "details": "Our Psychedelic Gummy Bears offer a delicious way to enjoy psilocybin. Each pack contains 10 gummy bears with 0.5g of mushrooms per bear. Available in a mix of fruit flavors including strawberry, orange, and grape, these gummies completely mask the mushroom taste while providing consistent dosing in a fun format."
+    },
+    "images": ["/uploads/gummy-bears.jpg"],
+    "tags": ["Edible", "Fruity", "Fun"],
+    "category": "gummies",
+    "primaryUse": "functional",
+    "hasStock": false
+  },
+  {
+    "name": "Mushroom Elixir Drink",
+    "price": 15.99,
+    "description": {
+      "main": "A refreshing lemon-ginger elixir infused with psilocybin mushrooms for a quick and tasty journey.",
+      "details": "Our Mushroom Elixir combines the refreshing taste of lemon and ginger with 2g of premium psilocybin mushrooms. This ready-to-drink beverage offers faster onset times compared to other consumption methods, typically beginning within 20-30 minutes. Each bottle contains a single dose perfect for a moderate experience."
+    },
+    "images": ["/uploads/mushroom-elixir.jpg"],
+    "tags": ["Beverage", "Fast-Acting", "Refreshing"],
+    "category": "drinks",
+    "primaryUse": "therapeutic",
+    "hasStock": true
+  }
+]
