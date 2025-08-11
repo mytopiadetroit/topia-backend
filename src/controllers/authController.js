@@ -207,31 +207,126 @@ module.exports = {
       
      
       let governmentIdUpdate = {};
-      if (req.file) {
-        console.log('Updated government ID file:', JSON.stringify(req.file, null, 2));
-        
-        let governmentId = '';
+      let avatarUpdate = {};
       
-        if (process.env.AWS_ACCESS_KEY) {
-          console.log('AWS S3 is configured. File should be uploaded to S3.');
-          if (req.file.location) {
-            governmentId = req.file.location;
-            console.log('S3 file location:', req.file.location);
-          } else {
-            console.error('Error: S3 is configured but req.file.location is undefined');
-            // Fallback to asset root + key if location is missing
-            if (req.file.key) {
-              governmentId = `${process.env.ASSET_ROOT}/${req.file.key}`;
-              console.log('Constructed S3 URL from key:', governmentId);
+      // Handle file uploads with multiple fields
+      if (req.files) {
+        console.log('Files uploaded:', Object.keys(req.files));
+        
+        // Handle government ID upload
+        if (req.files.govId && req.files.govId.length > 0) {
+          const govIdFile = req.files.govId[0];
+          console.log('Updated government ID file:', JSON.stringify(govIdFile, null, 2));
+          
+          let governmentId = '';
+        
+          if (process.env.AWS_ACCESS_KEY) {
+            console.log('AWS S3 is configured. File should be uploaded to S3.');
+            if (govIdFile.location) {
+              governmentId = govIdFile.location;
+              console.log('S3 file location:', govIdFile.location);
+            } else {
+              console.error('Error: S3 is configured but govIdFile.location is undefined');
+              // Fallback to asset root + key if location is missing
+              if (govIdFile.key) {
+                governmentId = `${process.env.ASSET_ROOT}/${govIdFile.key}`;
+                console.log('Constructed S3 URL from key:', governmentId);
+              }
             }
+          } else {
+            console.log('AWS S3 is not configured. Using local storage.');
+            governmentId = govIdFile.filename ? `/uploads/${govIdFile.filename}` : '';
           }
-        } else {
-          console.log('AWS S3 is not configured. Using local storage.');
-          governmentId = req.file.filename ? `/uploads/${req.file.filename}` : '';
+          
+          console.log('Updated government ID URL:', governmentId);
+          governmentIdUpdate = { governmentId };
         }
         
-        console.log('Updated government ID URL:', governmentId);
-        governmentIdUpdate = { governmentId };
+        // Handle avatar upload
+        if (req.files.avatar && req.files.avatar.length > 0) {
+          const avatarFile = req.files.avatar[0];
+          console.log('Updated avatar file:', JSON.stringify(avatarFile, null, 2));
+          
+          let avatar = '';
+        
+          if (process.env.AWS_ACCESS_KEY) {
+            console.log('AWS S3 is configured. File should be uploaded to S3.');
+            if (avatarFile.location) {
+              avatar = avatarFile.location;
+              console.log('S3 file location:', avatarFile.location);
+            } else {
+              console.error('Error: S3 is configured but avatarFile.location is undefined');
+              // Fallback to asset root + key if location is missing
+              if (avatarFile.key) {
+                avatar = `${process.env.ASSET_ROOT}/${avatarFile.key}`;
+                console.log('Constructed S3 URL from key:', avatar);
+              }
+            }
+          } else {
+            console.log('AWS S3 is not configured. Using local storage.');
+            avatar = avatarFile.filename ? `/uploads/${avatarFile.filename}` : '';
+          }
+          
+          console.log('Updated avatar URL:', avatar);
+          avatarUpdate = { avatar };
+        }
+      }
+      
+      // For backward compatibility with single file upload
+      if (req.file) {
+        console.log('Single file uploaded:', req.file.fieldname);
+        
+        if (req.file.fieldname === 'govId') {
+          console.log('Updated government ID file:', JSON.stringify(req.file, null, 2));
+          
+          let governmentId = '';
+        
+          if (process.env.AWS_ACCESS_KEY) {
+            console.log('AWS S3 is configured. File should be uploaded to S3.');
+            if (req.file.location) {
+              governmentId = req.file.location;
+              console.log('S3 file location:', req.file.location);
+            } else {
+              console.error('Error: S3 is configured but req.file.location is undefined');
+              // Fallback to asset root + key if location is missing
+              if (req.file.key) {
+                governmentId = `${process.env.ASSET_ROOT}/${req.file.key}`;
+                console.log('Constructed S3 URL from key:', governmentId);
+              }
+            }
+          } else {
+            console.log('AWS S3 is not configured. Using local storage.');
+            governmentId = req.file.filename ? `/uploads/${req.file.filename}` : '';
+          }
+          
+          console.log('Updated government ID URL:', governmentId);
+          governmentIdUpdate = { governmentId };
+        } else if (req.file.fieldname === 'avatar') {
+          console.log('Updated avatar file:', JSON.stringify(req.file, null, 2));
+          
+          let avatar = '';
+        
+          if (process.env.AWS_ACCESS_KEY) {
+            console.log('AWS S3 is configured. File should be uploaded to S3.');
+            if (req.file.location) {
+              avatar = req.file.location;
+              console.log('S3 file location:', req.file.location);
+            } else {
+              console.error('Error: S3 is configured but req.file.location is undefined');
+              // Fallback to asset root + key if location is missing
+              if (req.file.key) {
+                avatar = `${process.env.ASSET_ROOT}/${req.file.key}`;
+                console.log('Constructed S3 URL from key:', avatar);
+              }
+            }
+          } else {
+            console.log('AWS S3 is not configured. Using local storage.');
+            avatar = req.file.filename ? `/uploads/${req.file.filename}` : '';
+          }
+          
+          console.log('Updated avatar URL:', avatar);
+          avatarUpdate = { avatar };
+        }
       }
 
      
@@ -251,6 +346,10 @@ module.exports = {
       
       if (Object.keys(governmentIdUpdate).length > 0) {
         updateFields.governmentId = governmentIdUpdate.governmentId;
+      }
+      
+      if (Object.keys(avatarUpdate).length > 0) {
+        updateFields.avatar = avatarUpdate.avatar;
       }
 
       const updatedUser = await UserRegistration.findByIdAndUpdate(

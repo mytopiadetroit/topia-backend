@@ -18,7 +18,13 @@ router.post('/login', login);
 router.post('/verify-otp', verifyOtp);
 
 
-router.put('/profile/:id', upload.single('govId'), updateProfile);
+// Setup multer fields for multiple file types
+const uploadFields = upload.fields([
+  { name: 'govId', maxCount: 1 },
+  { name: 'avatar', maxCount: 1 }
+]);
+
+router.put('/profile/:id', uploadFields, updateProfile);
 
 // Get user profile
 router.get('/profile', require('../middlewares/authMiddleware').authenticate, getProfile);
