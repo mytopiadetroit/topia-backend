@@ -64,7 +64,14 @@ exports.createProduct = async (req, res) => {
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find();
+    const { categoryId } = req.query;
+    let filter = {};
+    
+    if (categoryId) {
+      filter.category = categoryId;
+    }
+    
+    const products = await Product.find(filter).populate('category', 'category');
     
     res.status(200).json({
       success: true,
@@ -82,7 +89,7 @@ exports.getAllProducts = async (req, res) => {
 
 exports.getProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).populate('category', 'category');
     
     if (!product) {
       return res.status(404).json({
@@ -94,6 +101,25 @@ exports.getProduct = async (req, res) => {
     res.status(200).json({
       success: true,
       data: product
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+exports.getProductsByCategory = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    
+    const products = await Product.find({ category: categoryId }).populate('category', 'category');
+    
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      data: products
     });
   } catch (error) {
     res.status(500).json({

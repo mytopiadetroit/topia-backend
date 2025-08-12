@@ -30,9 +30,9 @@ const ProductSchema = new mongoose.Schema({
     default: []
   },
   category: {
-    type: String,
-    required: [true, 'Please provide a category'],
-    enum: ['deals', 'gummies', 'chocolates', 'drinks', 'dried', 'capsules', 'merch']
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'productCategory',
+    required: [true, 'Please provide a category']
   },
   primaryUse: {
     type: String,

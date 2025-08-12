@@ -38,6 +38,9 @@ router.route('/:id')
   .put(productController.upload.array('images', 5), productController.updateProduct)
   .delete(productController.deleteProduct);
 
+// Get products by category
+router.get('/category/:categoryId', productController.getProductsByCategory);
+
 // Menu route - returns all products for menu page
 router.get('/menu/all', productController.getAllProducts);
 
