@@ -151,40 +151,86 @@ module.exports = {
   },
   login: async (req, res) => {
     try {
-      const { phone } = req.body;
+      const { phone, email, password, isAdmin } = req.body;
 
-      if (!phone) {
-        return res.status(400).json({ message: "Phone number is required" });
-      }
+      // For phone-based login (user role)
+      if (phone && !email && !password) {
+        const user = await UserRegistration.findOne({ phone });
 
-     
-      const user = await UserRegistration.findOne({ phone });
-
-      if (!user) {
-        return res.status(401).json({ message: "User not found with this phone number" });
-      }
-
-      const otp = "0000";
-     
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { id: user._id, phone: user.phone },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: "1d" }
-      );
-
-      res.json({
-        success: true,
-        message: 'OTP sent successfully',
-        token, 
-        user: {
-          id: user._id,
-          email: user.email,
-          fullName: user.fullName,
-          phone: user.phone
+        if (!user) {
+          return res.status(401).json({ message: "User not found with this phone number" });
         }
-      });
+
+        // Check if user has admin role when isAdmin flag is true
+        if (isAdmin && user.role !== 'admin') {
+          return res.status(403).json({ message: "Access denied. Admin privileges required." });
+        }
+
+        const otp = "0000";
+       
+        // Generate JWT token
+        const token = jwt.sign(
+          { id: user._id, phone: user.phone, role: user.role },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: "1d" }
+        );
+
+        res.json({
+          success: true,
+          message: 'OTP sent successfully',
+          token, 
+          user: {
+            id: user._id,
+            email: user.email,
+            fullName: user.fullName,
+            phone: user.phone,
+            role: user.role
+          }
+        });
+      }
+      // For email-based login (admin role)
+      else if (email && password) {
+        const user = await UserRegistration.findOne({ email });
+
+        if (!user) {
+          return res.status(401).json({ message: "User not found with this email" });
+        }
+
+        // For admin panel, check if user has admin role
+        if (user.role !== 'admin') {
+          return res.status(403).json({ message: "Access denied. Admin privileges required." });
+        }
+
+        // In a real implementation, we would verify the password hash
+        // For now, we'll just use a hardcoded check for demo purposes
+        // TODO: Implement proper password hashing and verification
+        if (password !== "admin123") {
+          return res.status(401).json({ message: "Invalid password" });
+        }
+
+        // Generate JWT token
+        const token = jwt.sign(
+          { id: user._id, email: user.email, role: user.role },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: "1d" }
+        );
+
+        res.json({
+          success: true,
+          message: 'Login successful',
+          token, 
+          user: {
+            id: user._id,
+            email: user.email,
+            fullName: user.fullName,
+            phone: user.phone,
+            role: user.role
+          }
+        });
+      }
+      else {
+        return res.status(400).json({ message: "Invalid login credentials" });
+      }
 
     } catch (error) {
       console.error(error);
