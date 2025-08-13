@@ -101,7 +101,6 @@ module.exports = {
         return res.status(400).json({ message: 'All required fields must be filled' });
       }
 
-   
       const existing = await UserRegistration.findOne({ email });
       if (existing) {
         return res.status(409).json({ message: 'Email already registered' });
