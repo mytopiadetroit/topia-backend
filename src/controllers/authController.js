@@ -1,4 +1,5 @@
 const UserRegistration = require('../models/User');
+const LoginEvent = require('../models/LoginEvent');
 const jwt = require('jsonwebtoken');
 
 module.exports = {
@@ -55,12 +56,15 @@ module.exports = {
         return res.status(401).json({ message: "Invalid OTP" });
       }
 
-      // Generate a new token after successful OTP verification
+      // Generate a new token after successful OTP verification (include role)
       const token = jwt.sign(
-        { id: user._id, phone: user.phone },
+        { id: user._id, phone: user.phone, role: user.role },
         process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: "7d" } // Longer expiry for verified login
+        { expiresIn: "7d" }
       );
+
+      // record login event
+      try { await LoginEvent.create({ user: user._id }); } catch (e) { console.error('LoginEvent error:', e?.message); }
 
       res.json({
         success: true,
@@ -214,6 +218,9 @@ module.exports = {
           process.env.JWT_SECRET || 'your-secret-key',
           { expiresIn: "1d" }
         );
+
+        // record login event for admin email login
+        try { await LoginEvent.create({ user: user._id }); } catch (e) { console.error('LoginEvent error:', e?.message); }
 
         res.json({
           success: true,

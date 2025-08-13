@@ -4,8 +4,10 @@ const {
   getAllUsers, 
   getUserById, 
   updateUser, 
-  deleteUser 
+  deleteUser,
+  getLoginStats
 } = require('../controllers/userController');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 // Get all users
 router.get('/', getAllUsers);
@@ -18,5 +20,8 @@ router.put('/:id', updateUser);
 
 // Delete user
 router.delete('/:id', deleteUser);
+
+// Admin: login stats for last 7 days
+router.get('/admin/login-stats/last7', authMiddleware.authenticate, authMiddleware.authorizationRole('admin'), getLoginStats);
 
 module.exports = router;
