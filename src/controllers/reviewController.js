@@ -59,7 +59,7 @@ exports.deleteReviewOption = async (req, res) => {
   }
 };
 
-// Submit a product review (user selects one option for a product)
+
 exports.submitReviewResponse = async (req, res) => {
   try {
     const userId = req.user && req.user.id;
