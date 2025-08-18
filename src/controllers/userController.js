@@ -101,6 +101,33 @@ const updateUser = async (req, res) => {
   }
 };
 
+// Update user status only (pending | suspend | verified)
+const updateUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body || {};
+    const allowed = ['pending', 'suspend', 'verified'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, runValidators: true }
+    ).select('-__v');
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    return res.status(200).json({ success: true, message: 'Status updated', data: user });
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 // Delete user
 const deleteUser = async (req, res) => {
   try {
@@ -132,7 +159,8 @@ module.exports = {
   getAllUsers,
   getUserById,
   updateUser,
-  deleteUser
+  deleteUser,
+  updateUserStatus
 };
 
 // Admin: get login stats for last 7 days including today

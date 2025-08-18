@@ -40,6 +40,11 @@ const userRegistrationSchema = new mongoose.Schema({
     default: 'user',
     
   },
+  status: {
+    type: String,
+    enum: ['pending', 'suspend', 'verified'],
+    default: 'pending'
+  },
   createdAt: {
     type: Date,
     default: Date.now

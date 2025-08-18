@@ -5,7 +5,8 @@ const {
   getUserById, 
   updateUser, 
   deleteUser,
-  getLoginStats
+  getLoginStats,
+  updateUserStatus
 } = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -17,6 +18,8 @@ router.get('/:id', getUserById);
 
 // Update user
 router.put('/:id', updateUser);
+// Update user status
+router.put('/:id/status', updateUserStatus);
 
 // Delete user
 router.delete('/:id', deleteUser);
