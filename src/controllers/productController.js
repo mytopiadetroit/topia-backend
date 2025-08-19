@@ -45,6 +45,12 @@ exports.createProduct = async (req, res) => {
       }
     }
 
+    // Normalize stock/hasStock
+    if (productData.stock != null) {
+      productData.stock = Number(productData.stock) || 0;
+      productData.hasStock = productData.stock > 0;
+    }
+
     const product = new Product(productData);
     await product.save();
 
@@ -191,6 +197,12 @@ exports.updateProduct = async (req, res) => {
           };
         }
       }
+    }
+
+    // Normalize stock/hasStock if provided
+    if (productData.stock != null) {
+      productData.stock = Number(productData.stock) || 0;
+      productData.hasStock = productData.stock > 0;
     }
 
     const product = await Product.findByIdAndUpdate(

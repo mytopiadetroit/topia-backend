@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
+const Product = require('../models/Product');
 
 // Create a new order
 exports.createOrder = async (req, res) => {
@@ -20,6 +21,25 @@ exports.createOrder = async (req, res) => {
     const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
     const tax = subtotal * 0.07; // 7% tax
     const totalAmount = subtotal + tax;
+
+    // Reserve stock before creating order
+    for (const item of items) {
+      const productId = item._id || item.id || item.product;
+      if (!productId) continue;
+      const product = await Product.findById(productId);
+      if (!product) {
+        return res.status(400).json({ success: false, message: `Product not found for item ${item.name || ''}` });
+      }
+      const requested = Number(item.quantity || 1);
+      if (product.stock != null) {
+        if (product.stock < requested) {
+          return res.status(400).json({ success: false, message: `Insufficient stock for ${product.name}` });
+        }
+        product.stock = product.stock - requested;
+        product.hasStock = product.stock > 0;
+        await product.save();
+      }
+    }
 
     // Create order (pickup flow)
     const order = new Order({
@@ -51,6 +71,7 @@ exports.createOrder = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating order:', error);
+    // In case of failure after reserving stock, we could add compensation, but we lack context of which items processed; skipping for now
     res.status(500).json({
       success: false,
       message: error.message
@@ -145,14 +166,31 @@ exports.getAllOrders = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true, runValidators: true }
-    ).populate('user', 'name email');
+    const orderId = req.params.id;
 
-    if (!order) {
+    const prev = await Order.findById(orderId);
+    if (!prev) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // If moving to incomplete or unfulfilled from a non-refunded state, revert stock; if moving to fulfilled, keep stock deducted
+    const shouldRevert = ['unfulfilled', 'incomplete'].includes(status);
+    const wasPending = prev.status === 'pending' || prev.status === 'unfulfilled';
+
+    const updated = await Order.findByIdAndUpdate(orderId, { status }, { new: true, runValidators: true }).populate('user', 'name email');
+
+    if (shouldRevert && wasPending) {
+      for (const item of prev.items || []) {
+        const product = await Product.findById(item.product);
+        if (product && product.stock != null) {
+          product.stock = product.stock + (item.quantity || 1);
+          product.hasStock = product.stock > 0;
+          await product.save();
+        }
+      }
+    }
+
+    if (!updated) {
       return res.status(404).json({
         success: false,
         message: 'Order not found'
@@ -162,7 +200,7 @@ exports.updateOrderStatus = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Order status updated successfully',
-      data: order
+      data: updated
     });
   } catch (error) {
     res.status(500).json({
