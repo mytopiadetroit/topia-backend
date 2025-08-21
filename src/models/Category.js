@@ -6,7 +6,18 @@ const categorySchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true
+  },
+  
+  metaTitle: {
+    type: String,
+    trim: true
+  },
+  metaDescription: {
+    type: String,
+    trim: true
   }
+}, {
+  timestamps: true 
 });
 
 module.exports = mongoose.model("productCategory", categorySchema);

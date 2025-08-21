@@ -31,6 +31,21 @@ exports.createProduct = async (req, res) => {
       }
     }
 
+    // Parse reviewTags (array of ObjectId strings) if provided
+    if (productData.reviewTags) {
+      try {
+        if (typeof productData.reviewTags === 'string') {
+          const parsed = JSON.parse(productData.reviewTags);
+          productData.reviewTags = Array.isArray(parsed) ? parsed : [];
+        }
+      } catch (e) {
+        productData.reviewTags = String(productData.reviewTags)
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+      }
+    }
+
  
     if (typeof productData.description === 'string') {
       try {
@@ -77,7 +92,7 @@ exports.getAllProducts = async (req, res) => {
       filter.category = categoryId;
     }
     
-    const products = await Product.find(filter).populate('category', 'category');
+    const products = await Product.find(filter).populate('category', 'category').populate('reviewTags', 'label isActive');
     
     res.status(200).json({
       success: true,
@@ -95,7 +110,9 @@ exports.getAllProducts = async (req, res) => {
 
 exports.getProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate('category', 'category');
+    const product = await Product.findById(req.params.id)
+      .populate('category', 'category')
+      .populate('reviewTags', 'label isActive');
     
     if (!product) {
       return res.status(404).json({
@@ -104,11 +121,17 @@ exports.getProduct = async (req, res) => {
       });
     }
 
+    // Debug: Log the populated reviewTags
+    console.log('Product reviewTags after populate:', product.reviewTags);
+    console.log('ReviewTags type:', typeof product.reviewTags);
+    console.log('ReviewTags length:', product.reviewTags?.length);
+
     res.status(200).json({
       success: true,
       data: product
     });
   } catch (error) {
+    console.error('Error in getProduct:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -120,7 +143,7 @@ exports.getProductsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
     
-    const products = await Product.find({ category: categoryId }).populate('category', 'category');
+    const products = await Product.find({ category: categoryId }).populate('category', 'category').populate('reviewTags', 'label isActive');
     
     res.status(200).json({
       success: true,
@@ -203,6 +226,21 @@ exports.updateProduct = async (req, res) => {
     if (productData.stock != null) {
       productData.stock = Number(productData.stock) || 0;
       productData.hasStock = productData.stock > 0;
+    }
+
+    // Parse reviewTags (array of ObjectId strings) if provided
+    if (productData.reviewTags) {
+      try {
+        if (typeof productData.reviewTags === 'string') {
+          const parsed = JSON.parse(productData.reviewTags);
+          productData.reviewTags = Array.isArray(parsed) ? parsed : [];
+        }
+      } catch (e) {
+        productData.reviewTags = String(productData.reviewTags)
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+      }
     }
 
     const product = await Product.findByIdAndUpdate(

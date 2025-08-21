@@ -30,10 +30,20 @@ const ProductSchema = new mongoose.Schema({
     type: [String],
     required: [true, 'Please provide at least one product image']
   },
+   imageAltName: {
+    type: String,
+    
+  },
+
   tags: {
     type: [String],
     default: []
   },
+  reviewTags: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ReviewTag',
+    default: []
+  }],
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'productCategory',
@@ -47,6 +57,14 @@ const ProductSchema = new mongoose.Schema({
   hasStock: {
     type: Boolean,
     default: true
+  },
+   metaTitle: {
+    type: String,
+    
+  },
+  metaDescription: {
+    type: String,
+    
   },
   createdAt: {
     type: Date,

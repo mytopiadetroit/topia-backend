@@ -1,10 +1,9 @@
-
 const Category = require("../models/Category");
-module.exports = {
 
- createCategory: async (req, res) => {
+module.exports = {
+  createCategory: async (req, res) => {
     try {
-      const { category } = req.body;
+      const { category, metaTitle, metaDescription } = req.body;
 
       if (!category) {
         return res
@@ -19,38 +18,47 @@ module.exports = {
           .json({ success: false, message: "Category already exists" });
       }
 
-      const newFood = new Category({ category });
-      await newFood.save();
+      const newCategory = new Category({ 
+        category,
+        metaTitle: metaTitle || '',
+        metaDescription: metaDescription || ''
+      });
+      await newCategory.save();
 
       res
         .status(201)
-        .json({ success: true, message: "Category created", data: newFood });
+        .json({ success: true, message: "Category created", data: newCategory });
     } catch (error) {
       console.error("Error in createCategory:", error);
       res.status(500).json({ success: false, message: error.message });
     }
   },
+
   editCategory: async (req, res) => {
     try {
       const { id } = req.params;
-      const { category } = req.body;
+      const { category, metaTitle, metaDescription } = req.body;
 
-      const food = await Category.findById(id);
-      if (!food) {
+      const categoryDoc = await Category.findById(id);
+      if (!categoryDoc) {
         return res
           .status(404)
           .json({ success: false, message: "Category not found" });
       }
 
-      food.category = category || food.category;
-      await food.save();
+      // Update fields
+      categoryDoc.category = category || categoryDoc.category;
+      categoryDoc.metaTitle = metaTitle !== undefined ? metaTitle : categoryDoc.metaTitle;
+      categoryDoc.metaDescription = metaDescription !== undefined ? metaDescription : categoryDoc.metaDescription;
+      
+      await categoryDoc.save();
 
       res
         .status(200)
         .json({
           success: true,
           message: "Category updated successfully",
-          data: food,
+          data: categoryDoc,
         });
     } catch (error) {
       console.error("Error in editCategory:", error);
@@ -78,48 +86,43 @@ module.exports = {
     }
   },
 
-getAllCategories: async (req, res) => {
-  try {
-    const search = req.query.search || "";
-    const page = parseInt(req.query.page) || 1;
-    const limit = 15;
-    const skip = (page - 1) * limit;
+  getAllCategories: async (req, res) => {
+    try {
+      const search = req.query.search || "";
+      const page = parseInt(req.query.page) || 1;
+      const limit = 15;
+      const skip = (page - 1) * limit;
 
-    // Create search filter
-    let filter = {};
-    
-    if (search.trim()) {
-      filter = {
-        category: { $regex: search, $options: "i" }
-      };
+      let filter = {};
+      
+      if (search.trim()) {
+        filter = {
+          category: { $regex: search, $options: "i" }
+        };
+      }
+
+      const totalCategories = await Category.countDocuments(filter);
+      const totalPages = Math.ceil(totalCategories / limit);
+
+      const categories = await Category.find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 });
+
+      res.status(200).json({
+        success: true,
+        message: search.trim() ? "Search results fetched successfully" : "Categories fetched successfully",
+        data: categories,
+        pagination: {
+          currentPage: page,
+          totalPages: totalPages,
+          totalItems: totalCategories,
+          itemsPerPage: limit,
+        },
+      });
+    } catch (error) {
+      console.error("Error in getAllCategories:", error);
+      res.status(500).json({ success: false, message: error.message });
     }
-
-    // Get total count with filter
-    const totalCategories = await Category.countDocuments(filter);
-    const totalPages = Math.ceil(totalCategories / limit);
-
-    // Get categories with pagination and filter
-    const categories = await Category.find(filter)
-      .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      message: search.trim() ? "Search results fetched successfully" : "Categories fetched successfully",
-      data: categories,
-      pagination: {
-        currentPage: page,
-        totalPages: totalPages,
-        totalItems: totalCategories,
-        itemsPerPage: limit,
-      },
-    });
-  } catch (error) {
-    console.error("Error in getAllCategories:", error);
-    res.status(500).json({ success: false, message: error.message });
   }
-}
-
-
-}
+};
