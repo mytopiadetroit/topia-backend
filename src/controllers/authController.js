@@ -96,7 +96,6 @@ module.exports = {
         howDidYouHear,
       } = req.body;
 
-     
       if (  !fullName || !phone || !day || !month || !year || !howDidYouHear) {
         return res.status(400).json({ message: 'All required fields must be filled' });
       }
