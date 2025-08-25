@@ -1,55 +1,54 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const userRegistrationSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
     unique: true,
-    trim: true
+    trim: true,
   },
   fullName: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
   },
   phone: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
   },
   birthday: {
     day: { type: String, required: true },
     month: { type: String, required: true },
-    year: { type: String, required: true }
+    year: { type: String, required: true },
   },
   howDidYouHear: {
     type: String,
-    required: true
+    required: true,
   },
   governmentId: {
-    type: String, 
-    required: false
+    type: String,
+    required: false,
   },
   avatar: {
     type: String,
-    required: false
+    required: false,
   },
   role: {
     type: String,
     enum: ['user', 'admin'],
     default: 'user',
-    
   },
   status: {
     type: String,
     enum: ['pending', 'suspend', 'verified'],
-    default: 'pending'
+    default: 'pending',
   },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
-});
+    default: Date.now,
+  },
+})
 
-const UserRegistration = mongoose.model('User', userRegistrationSchema);
-module.exports = UserRegistration;
+const UserRegistration = mongoose.model('User', userRegistrationSchema)
+module.exports = UserRegistration

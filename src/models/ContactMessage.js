@@ -1,11 +1,11 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const ContactMessageSchema = new mongoose.Schema(
   {
     fullName: {
       type: String,
       required: [true, 'Full name is required'],
-      trim: true
+      trim: true,
     },
     email: {
       type: String,
@@ -13,33 +13,31 @@ const ContactMessageSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
       unique: true,
-      index: true
+      index: true,
     },
     mobileNumber: {
       type: String,
       required: [true, 'Mobile number is required'],
       trim: true,
       unique: true,
-      index: true
+      index: true,
     },
     message: {
       type: String,
       required: [true, 'Message is required'],
-      trim: true
+      trim: true,
     },
     isRead: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   {
-    timestamps: true
-  }
-);
+    timestamps: true,
+  },
+)
 
-ContactMessageSchema.index({ email: 1 }, { unique: true });
-ContactMessageSchema.index({ mobileNumber: 1 }, { unique: true });
+ContactMessageSchema.index({ email: 1 }, { unique: true })
+ContactMessageSchema.index({ mobileNumber: 1 }, { unique: true })
 
-module.exports = mongoose.model('ContactMessage', ContactMessageSchema);
-
-
+module.exports = mongoose.model('ContactMessage', ContactMessageSchema)

@@ -1,9 +1,11 @@
 # Shroomtopia Backend API
 
 ## Overview
+
 This is the backend API for Shroomtopia, providing CRUD operations for products with support for multiple image uploads.
 
 ## Features
+
 - Create, read, update, and delete products
 - Multiple image upload support (local storage or S3)
 - Product filtering by category and primary use
@@ -12,11 +14,13 @@ This is the backend API for Shroomtopia, providing CRUD operations for products 
 ## Setup
 
 ### Prerequisites
+
 - Node.js (v14 or higher)
 - MongoDB (local or Atlas)
 - AWS S3 bucket (optional, for image storage)
 
 ### Environment Variables
+
 Create a `.env` file in the root directory with the following variables:
 
 ```
@@ -33,11 +37,13 @@ BUCKET_NAME=your-bucket-name
 ### Installation
 
 1. Install dependencies:
+
    ```
    npm install
    ```
 
 2. Start the server:
+
    ```
    npm start
    ```
@@ -59,6 +65,7 @@ Detailed API documentation is available in the `src/docs/postman_guide.md` file.
 ## API Endpoints
 
 ### Products
+
 - `GET /api/products` - Get all products
 - `GET /api/products/:id` - Get a single product
 - `POST /api/products` - Create a new product
@@ -66,9 +73,11 @@ Detailed API documentation is available in the `src/docs/postman_guide.md` file.
 - `DELETE /api/products/:id` - Delete a product
 
 ### Menu
+
 - `GET /api/products/menu/all` - Get all products for menu display
 
 ### Testing
+
 - `POST /api/products/test-upload` - Test endpoint for file uploads
 
 ## Image Upload

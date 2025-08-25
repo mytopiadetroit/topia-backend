@@ -1,5 +1,5 @@
-'use strict';
-const mongoose = require('mongoose');
+'use strict'
+const mongoose = require('mongoose')
 
 const subscriberSchema = new mongoose.Schema(
   {
@@ -9,12 +9,10 @@ const subscriberSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, 'Invalid email address']
-    }
+      match: [/^\S+@\S+\.\S+$/, 'Invalid email address'],
+    },
   },
-  { timestamps: true }
-);
+  { timestamps: true },
+)
 
-module.exports = mongoose.model('Subscriber', subscriberSchema);
-
-
+module.exports = mongoose.model('Subscriber', subscriberSchema)
