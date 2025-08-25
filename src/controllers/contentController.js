@@ -113,11 +113,7 @@ const getContentById = async (req, res) => {
       });
     }
 
-    // Increment views for published content
-    if (content.status === 'published') {
-      content.views += 1;
-      await content.save();
-    }
+    // NOTE: Views are no longer incremented on GET. Use POST /public/:id/view instead.
 
     res.json({
       success: true,
@@ -132,30 +128,42 @@ const getContentById = async (req, res) => {
   }
 };
 
-// Create new content
 const createContent = async (req, res) => {
   try {
     const contentData = {
       ...req.body,
-      author: req.user.id
+      author: req.user?.id || null, // handle case if no auth
     };
 
-    // Handle file uploads
-   if (req.files.featuredImage) {
-  contentData.featuredImage = req.files.featuredImage[0].location || `/uploads/content/${req.files.featuredImage[0].filename}`;
-}
-if (req.files.videoThumbnail) {
-  contentData.videoThumbnail = req.files.videoThumbnail[0].location || `/uploads/content/${req.files.videoThumbnail[0].filename}`;
-}
+    // Handle file uploads (S3 ka .location prefer hoga, warna local fallback)
+    if (req.files.featuredImage) {
+      contentData.featuredImage =
+        req.files.featuredImage[0].location ||
+        `/uploads/content/${req.files.featuredImage[0].filename}`;
+    }
+
+    if (req.files.featuredVideo) {
+      contentData.videoUrl =
+        req.files.featuredVideo[0].location ||
+        `/uploads/content/${req.files.featuredVideo[0].filename}`;
+    }
+
+    if (req.files.videoThumbnail) {
+      contentData.videoThumbnail =
+        req.files.videoThumbnail[0].location ||
+        `/uploads/content/${req.files.videoThumbnail[0].filename}`;
+    }
 
     // Parse tags if they're sent as string
-    if (typeof contentData.tags === 'string') {
-      contentData.tags = contentData.tags.split(',').map(tag => tag.trim());
+    if (typeof contentData.tags === "string") {
+      contentData.tags = contentData.tags.split(",").map((tag) => tag.trim());
     }
 
     // Parse SEO keywords if they're sent as string
-    if (contentData.seo && typeof contentData.seo.metaKeywords === 'string') {
-      contentData.seo.metaKeywords = contentData.seo.metaKeywords.split(',').map(keyword => keyword.trim());
+    if (contentData.seo && typeof contentData.seo.metaKeywords === "string") {
+      contentData.seo.metaKeywords = contentData.seo.metaKeywords
+        .split(",")
+        .map((keyword) => keyword.trim());
     }
 
     // Calculate read time (rough estimate: 200 words per minute)
@@ -164,21 +172,27 @@ if (req.files.videoThumbnail) {
       contentData.readTime = Math.ceil(wordCount / 200);
     }
 
+    // Save in DB
     const content = new Content(contentData);
     await content.save();
 
-    const populatedContent = await Content.findById(content._id).populate('author', 'name email');
+    // Populate author details
+    const populatedContent = await Content.findById(content._id).populate(
+      "author",
+      "name email"
+    );
 
     res.status(201).json({
       success: true,
-      message: 'Content created successfully',
-      data: populatedContent
+      message: "Content created successfully",
+      data: populatedContent,
     });
   } catch (error) {
+    console.error("Error creating content:", error);
     res.status(400).json({
       success: false,
-      message: 'Error creating content',
-      error: error.message
+      message: "Error creating content",
+      error: error.message,
     });
   }
 };
@@ -353,6 +367,119 @@ const getContentStats = async (req, res) => {
   }
 };
 
+// Add view to public content (unique per visitorId)
+const addViewPublic = async (req, res) => {
+  try {
+    const content = await Content.findById(req.params.id);
+    
+    if (!content) {
+      return res.status(404).json({
+        success: false,
+        message: 'Content not found'
+      });
+    }
+
+    const visitorId = (req.body && req.body.visitorId) || req.headers['x-visitor-id'];
+    if (!visitorId) {
+      return res.status(400).json({ success: false, message: 'visitorId required' });
+    }
+
+    const alreadyViewed = (content.viewedBy || []).includes(visitorId);
+    if (!alreadyViewed) {
+      content.viewedBy = [...(content.viewedBy || []), visitorId];
+      content.views = (content.views || 0) + 1;
+      await content.save();
+    }
+
+    res.json({
+      success: true,
+      data: { views: content.views, alreadyViewed }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error adding view',
+      error: error.message
+    });
+  }
+};
+
+// Like content (auth required, unique per user)
+const likeContent = async (req, res) => {
+  try {
+    const content = await Content.findById(req.params.id);
+    
+    if (!content) {
+      return res.status(404).json({
+        success: false,
+        message: 'Content not found'
+      });
+    }
+
+    const userId = req.user && req.user.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const likedBy = content.likedBy || [];
+    const hasLiked = likedBy.some((u) => String(u) === String(userId));
+    if (!hasLiked) {
+      content.likedBy = [...likedBy, userId];
+      content.likes = (content.likes || 0) + 1;
+      await content.save();
+    }
+
+    res.json({
+      success: true,
+      data: { likes: content.likes, liked: true }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error liking content',
+      error: error.message
+    });
+  }
+};
+
+// Unlike content (auth required)
+const unlikeContent = async (req, res) => {
+  try {
+    const content = await Content.findById(req.params.id);
+    
+    if (!content) {
+      return res.status(404).json({
+        success: false,
+        message: 'Content not found'
+      });
+    }
+
+    const userId = req.user && req.user.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const likedBy = content.likedBy || [];
+    const hasLiked = likedBy.some((u) => String(u) === String(userId));
+    if (hasLiked) {
+      content.likedBy = likedBy.filter((u) => String(u) !== String(userId));
+      content.likes = Math.max(0, (content.likes || 0) - 1);
+      await content.save();
+    }
+
+    res.json({
+      success: true,
+      data: { likes: content.likes, liked: false }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error unliking content',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   
   getAllContent,
@@ -362,5 +489,8 @@ module.exports = {
   updateContent,
   deleteContent,
   getContentCategories,
-  getContentStats
+  getContentStats,
+  addViewPublic,
+  likeContent,
+  unlikeContent
 };

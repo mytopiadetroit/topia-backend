@@ -50,6 +50,14 @@ module.exports = {
         return res.status(401).json({ message: "User not found with this phone number" });
       }
 
+      // Check if user account is suspended
+      if (user.status === 'suspend') {
+        return res.status(403).json({ 
+          success: false,
+          message: "Your account has been suspended. Please contact support." 
+        });
+      }
+
       // In a real implementation, we would verify the OTP from database
       // For now, we'll just check if it's our hardcoded value: 0000
       if (otp !== "0000") {
@@ -169,6 +177,14 @@ module.exports = {
           return res.status(403).json({ message: "Access denied. Admin privileges required." });
         }
 
+        // Check if user account is suspended
+        if (user.status === 'suspend') {
+          return res.status(403).json({ 
+            success: false,
+            message: "Your account has been suspended. Please contact support." 
+          });
+        }
+
         const otp = "0000";
        
         // Generate JWT token
@@ -187,7 +203,8 @@ module.exports = {
             email: user.email,
             fullName: user.fullName,
             phone: user.phone,
-            role: user.role
+            role: user.role,
+            status: user.status
           }
         });
       }
@@ -235,7 +252,7 @@ module.exports = {
         });
       }
       else {
-        return res.status(400).json({ message: "Invalid login credentials" });
+        return res.status(400).json({ message: "Phone number is required" });
       }
 
     } catch (error) {

@@ -4,7 +4,6 @@ const fs = require('fs');
 const multerS3 = require('multer-s3');  
 const { s3Client, bucketName } = require('../config/s3');
 
-
 const uploadDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -21,7 +20,7 @@ const s3Storage = multerS3({
   },
   key: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'government-ids/' + uniqueSuffix + path.extname(file.originalname));
+    cb(null, 'uploads/' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
@@ -36,28 +35,17 @@ const diskStorage = multer.diskStorage({
   }
 });
 
-// Debug AWS configuration
-console.log('AWS Configuration:');
-console.log('AWS_ACCESS_KEY exists:', !!process.env.AWS_ACCESS_KEY);
-console.log('BUCKET_NAME:', process.env.BUCKET_NAME);
-console.log('BUCKET_REGION:', process.env.BUCKET_REGION);
-
-// Use S3 storage if AWS credentials are available, otherwise use disk storage
+// Choose storage
 const storage = process.env.AWS_ACCESS_KEY ? s3Storage : diskStorage;
-console.log('Using storage:', process.env.AWS_ACCESS_KEY ? 'S3 Storage' : 'Disk Storage');
 
-// File filter to accept only images
+// File filter to allow images, videos, and audio files
 const fileFilter = (req, file, cb) => {
-  console.log('=== MULTER DEBUG ===');
-  console.log('Processing file:', file.originalname, 'Type:', file.mimetype);
-  console.log('Field name:', file.fieldname);
-  console.log('File size:', file.size);
-  console.log('=== END MULTER DEBUG ===');
-  
-  if (file.mimetype.startsWith('image/')) {
+  if (file.mimetype.startsWith('image/') || 
+      file.mimetype.startsWith('video/') || 
+      file.mimetype.startsWith('audio/')) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed!'), false);
+    cb(new Error('Only image, video, and audio files are allowed!'), false);
   }
 };
 
@@ -65,7 +53,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 100 * 1024 * 1024 // 100MB limit
   }
 });
 

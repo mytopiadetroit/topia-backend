@@ -85,14 +85,23 @@ exports.createProduct = async (req, res) => {
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const { categoryId } = req.query;
+    const { categoryId, limit } = req.query;
     let filter = {};
     
     if (categoryId) {
       filter.category = categoryId;
     }
     
-    const products = await Product.find(filter).populate('category', 'category').populate('reviewTags', 'label isActive');
+    let query = Product.find(filter)
+      .populate('category', 'category')
+      .populate('reviewTags', 'label isActive');
+    
+    if (limit) {
+      const lim = Math.max(0, parseInt(limit, 10) || 0);
+      if (lim > 0) query = query.limit(lim);
+    }
+    
+    const products = await query.exec();
     
     res.status(200).json({
       success: true,
@@ -142,8 +151,18 @@ exports.getProduct = async (req, res) => {
 exports.getProductsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
+    const { limit } = req.query;
     
-    const products = await Product.find({ category: categoryId }).populate('category', 'category').populate('reviewTags', 'label isActive');
+    let query = Product.find({ category: categoryId })
+      .populate('category', 'category')
+      .populate('reviewTags', 'label isActive');
+    
+    const lim = limit != null ? parseInt(limit, 10) : 3; // default to 3 for category sections
+    if (!Number.isNaN(lim) && lim > 0) {
+      query = query.limit(lim);
+    }
+    
+    const products = await query.exec();
     
     res.status(200).json({
       success: true,

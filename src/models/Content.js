@@ -66,6 +66,13 @@ const contentSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  likedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  viewedBy: [{
+    type: String // anonymous visitorId stored client-side
+  }],
   seo: {
     metaTitle: {
       type: String,
