@@ -70,14 +70,20 @@ exports.submitReviewResponse = async (req, res) => {
     const option = await ReviewOption.findById(optionId);
     if (!option || !option.isActive) return res.status(400).json({ success: false, message: 'Invalid or inactive option' });
 
-    const response = await ReviewResponse.create({
+    // Upsert: if a review by this user for this product (and order if provided) exists, update it; else create.
+    const filter = { user: userId, product: productId };
+    if (orderId) filter.order = orderId;
+
+    const update = {
       user: userId,
       product: productId,
       option: optionId,
       label: option.label,
       emoji: option.emoji,
       order: orderId || undefined
-    });
+    };
+
+    const response = await ReviewResponse.findOneAndUpdate(filter, update, { new: true, upsert: true, setDefaultsOnInsert: true });
 
     return res.status(201).json({ success: true, data: response });
   } catch (error) {
@@ -98,6 +104,29 @@ exports.getProductReviewAggregates = async (req, res) => {
     ];
     const results = await ReviewResponse.aggregate(pipeline);
     return res.status(200).json({ success: true, data: results });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Get the current user's review for a product (optionally scoped to an order)
+exports.getMyReviewForProduct = async (req, res) => {
+  try {
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const { productId, orderId } = req.query || {};
+    if (!productId) return res.status(400).json({ success: false, message: 'productId is required' });
+
+    const baseFilter = { user: userId, product: productId };
+    const filter = orderId ? { ...baseFilter, order: orderId } : baseFilter;
+
+    let doc = await ReviewResponse.findOne(filter).select('-__v');
+    // Fallback: if not found with order filter, try without order (legacy reviews)
+    if (!doc && orderId) {
+      doc = await ReviewResponse.findOne(baseFilter).select('-__v');
+    }
+    if (!doc) return res.status(200).json({ success: true, data: null });
+    return res.status(200).json({ success: true, data: doc });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
   }
