@@ -374,7 +374,7 @@ const getContentStats = async (req, res) => {
   }
 }
 
-
+// add
 const addViewPublic = async (req, res) => {
   try {
     const content = await Content.findById(req.params.id)
