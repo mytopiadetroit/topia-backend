@@ -1,3 +1,4 @@
+const mongoose = require('mongoose')
 const Wishlist = require('../models/Wishlist')
 const Product = require('../models/Product')
 
@@ -5,7 +6,10 @@ module.exports = {
   // GET /api/wishlist
   getWishlist: async (req, res) => {
     try {
-      const userId = req.user.id || req.user._id
+      if (!req.user || (!req.user.id && !req.user._id && !req.user.userId)) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' })
+      }
+      const userId = (req.user.id || req.user._id || req.user.userId).toString()
       const wishlist = await Wishlist.findOne({ user: userId }).populate(
         'items',
       )
@@ -21,8 +25,17 @@ module.exports = {
   // POST /api/wishlist/:productId
   addToWishlist: async (req, res) => {
     try {
-      const userId = req.user.id || req.user._id
+      if (!req.user || (!req.user.id && !req.user._id && !req.user.userId)) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' })
+      }
+      const userId = (req.user.id || req.user._id || req.user.userId).toString()
       const { productId } = req.params
+
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid product id' })
+      }
 
       // Ensure product exists
       const product = await Product.findById(productId)
@@ -50,8 +63,17 @@ module.exports = {
   // DELETE /api/wishlist/:productId
   removeFromWishlist: async (req, res) => {
     try {
-      const userId = req.user.id || req.user._id
+      if (!req.user || (!req.user.id && !req.user._id && !req.user.userId)) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' })
+      }
+      const userId = (req.user.id || req.user._id || req.user.userId).toString()
       const { productId } = req.params
+
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid product id' })
+      }
 
       const wishlist = await Wishlist.findOneAndUpdate(
         { user: userId },
