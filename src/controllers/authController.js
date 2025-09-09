@@ -100,7 +100,7 @@ module.exports = {
 
   register: async (req, res) => {
     try {
-      const { email, fullName, phone, day, month, year, howDidYouHear } =
+      const { email, fullName, phone, day, month, year, howDidYouHear, takesMedication, medicationDetails } =
         req.body
 
       if (!fullName || !phone || !day || !month || !year || !howDidYouHear) {
@@ -144,6 +144,9 @@ module.exports = {
         console.log('Saved government ID URL:', governmentId)
       }
 
+      // Convert takesMedication to boolean
+      const takesMedicationBool = takesMedication === 'true' || takesMedication === true;
+      
       const newUser = new UserRegistration({
         email,
         fullName,
@@ -151,6 +154,8 @@ module.exports = {
         birthday: { day, month, year },
         howDidYouHear,
         governmentId,
+        takesMedication: takesMedicationBool,
+        medicationDetails: takesMedicationBool ? (medicationDetails || '') : '',
       })
 
       await newUser.save()

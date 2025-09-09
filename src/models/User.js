@@ -26,6 +26,14 @@ const userRegistrationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  takesMedication: {
+    type: Boolean,
+    default: false,
+  },
+  medicationDetails: {
+    type: String,
+    default: '',
+  },
   governmentId: {
     type: String,
     required: false,
