@@ -170,6 +170,46 @@ exports.getProductsByCategory = async (req, res) => {
   }
 }
 
+
+exports.getProductsByCategoryPaginated = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const { page = 1, limit = 10 } = req.query; 
+
+    
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+
+    
+    const skip = (pageNumber - 1) * limitNumber;
+
+  
+    const total = await Product.countDocuments({ category: categoryId });
+
+  
+    const products = await Product.find({ category: categoryId })
+      .populate("category", "category")
+      .populate("reviewTags", "label isActive")
+      .skip(skip)
+      .limit(limitNumber)
+      .exec();
+
+    res.status(200).json({
+      success: true,
+      total, 
+      page: pageNumber,
+      pages: Math.ceil(total / limitNumber), 
+      count: products.length,
+      data: products,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 exports.updateProduct = async (req, res) => {
   try {
     console.log('Update request body:', req.body)

@@ -52,8 +52,9 @@ router
 
 // Get products by category
 router.get('/category/:categoryId', productController.getProductsByCategory)
+router.get('/category/paginated/:categoryId', productController.getProductsByCategoryPaginated)
 
-// Menu route - returns all products for menu page
+
 router.get('/menu/all', productController.getAllProducts)
 
 module.exports = router
