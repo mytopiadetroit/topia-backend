@@ -1,7 +1,7 @@
 const User = require('../models/User')
 const bcrypt = require('bcryptjs')
 
-// Get admin profile
+
 const getAdminProfile = async (req, res) => {
   try {
     const adminId = req.user.id
