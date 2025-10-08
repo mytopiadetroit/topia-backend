@@ -7,11 +7,17 @@ const {
   updateProfile,
   verifyOtp,
   getProfile,
+  AdminverifyOtp,
+  Adminlogin,
 } = require('../controllers/authController')
 
 router.post('/register', upload.single('govId'), register)
 
 router.post('/login', login)
+
+router.post('/admin-login', Adminlogin)
+
+router.post('/admin-verify-otp', AdminverifyOtp)
 
 router.post('/verify-otp', verifyOtp)
 

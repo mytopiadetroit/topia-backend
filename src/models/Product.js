@@ -46,6 +46,11 @@ const ProductSchema = new mongoose.Schema(
         default: [],
       },
     ],
+    order: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
     category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'productCategory',

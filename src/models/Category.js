@@ -8,7 +8,10 @@ const categorySchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
-
+    image: {
+      type: String,
+      default: '',
+    },
     metaTitle: {
       type: String,
       trim: true,

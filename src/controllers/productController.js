@@ -149,6 +149,9 @@ exports.getProductsByCategory = async (req, res) => {
     let query = Product.find({ category: categoryId })
       .populate('category', 'category')
       .populate('reviewTags', 'label isActive')
+      .sort({ order: 1 }) // Sort by order field in ascending order
+      
+    console.log(`Fetching products for category ${categoryId} sorted by order`);
 
     const lim = limit != null ? parseInt(limit, 10) : 3 // default to 3 for category sections
     if (!Number.isNaN(lim) && lim > 0) {
@@ -190,9 +193,14 @@ exports.getProductsByCategoryPaginated = async (req, res) => {
     const products = await Product.find({ category: categoryId })
       .populate("category", "category")
       .populate("reviewTags", "label isActive")
+      .sort({ order: 1 }) // Sort by order field in ascending order
       .skip(skip)
       .limit(limitNumber)
       .exec();
+      
+    console.log(`Fetched ${products.length} products for category ${categoryId} in order:`, 
+      products.map(p => ({ id: p._id, name: p.name, order: p.order }))
+    );
 
     res.status(200).json({
       success: true,
@@ -319,6 +327,55 @@ exports.updateProduct = async (req, res) => {
 }
 
 // Delete a product
+// Update product order
+exports.updateProductOrder = async (req, res) => {
+  console.log('=== UPDATE PRODUCT ORDER REQUEST ===');
+  console.log('Product ID:', req.params.productId);
+  console.log('New Order:', req.body.order);
+  
+  try {
+    const { productId } = req.params;
+    const { order } = req.body;
+
+    if (order === undefined || order === null) {
+      console.log('Error: Order value is required');
+      return res.status(400).json({
+        success: false,
+        message: 'Order value is required',
+      });
+    }
+
+    console.log(`Updating product ${productId} order to ${order}`);
+    
+    const product = await Product.findByIdAndUpdate(
+      productId,
+      { order: Number(order) },
+      { new: true, runValidators: true }
+    );
+
+    if (!product) {
+      console.log(`Error: Product ${productId} not found`);
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    console.log('Product order updated successfully:', product);
+    res.status(200).json({
+      success: true,
+      data: product,
+    });
+  } catch (error) {
+    console.error('Error updating product order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating product order',
+      error: error.message,
+    });
+  }
+};
+
 exports.deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)

@@ -11,8 +11,10 @@ const contentRoutes = require('./routes/contentRoutes')
 const rewardRoutes = require('./routes/rewardRoutes')
 const adminRoutes = require('./routes/adminRoutes')
 const wishlistRoutes = require('./routes/wishlistRoutes')
+const shopSettingsRoutes = require('./routes/shopSettingsRoutes')
 
 module.exports = (app) => {
+    app.use('/api/shop-settings', shopSettingsRoutes)
   app.use('/api/auth', authRoutes)
   app.use('/api/products', productRoutes)
   app.use('/api/categories', categoryRoutes)
@@ -26,4 +28,5 @@ module.exports = (app) => {
   app.use('/api/rewards', rewardRoutes)
   app.use('/api/admin', adminRoutes)
   app.use('/api/wishlist', wishlistRoutes)
+
 }

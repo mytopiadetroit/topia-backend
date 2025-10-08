@@ -50,6 +50,9 @@ router
   )
   .delete(productController.deleteProduct)
 
+// Update product order
+router.put('/:productId/order', productController.updateProductOrder)
+
 // Get products by category
 router.get('/category/:categoryId', productController.getProductsByCategory)
 router.get('/category/paginated/:categoryId', productController.getProductsByCategoryPaginated)

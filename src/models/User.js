@@ -52,6 +52,14 @@ const userRegistrationSchema = new mongoose.Schema({
     enum: ['pending', 'suspend', 'verified'],
     default: 'pending',
   },
+  otp: {
+    type: String,
+    select: false, // Don't include in query results by default
+  },
+  otpExpires: {
+    type: Date,
+    select: false, // Don't include in query results by default
+  },
   createdAt: {
     type: Date,
     default: Date.now,

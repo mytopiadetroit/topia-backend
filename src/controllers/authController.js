@@ -1,40 +1,124 @@
 const UserRegistration = require('../models/User')
 const LoginEvent = require('../models/LoginEvent')
 const jwt = require('jsonwebtoken')
+const { sendWelcomeEmail } = require('../utils/emailService')
+const { sendOTP } = require('../utils/smsService')
 
 module.exports = {
-  getProfile: async (req, res) => {
+
+
+  Adminlogin: async (req, res) => {
     try {
-      const userId = req.user.id
+      const { phone, email, password, isAdmin } = req.body
 
-      // Find user by ID
-      const user = await UserRegistration.findById(userId)
+      // For phone-based login (user role)
+      if (phone && !email && !password) {
+        const user = await UserRegistration.findOne({ phone })
 
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' })
+        if (!user) {
+          return res
+            .status(401)
+            .json({ message: 'User not found with this phone number' })
+        }
+
+        // Check if user has admin role when isAdmin flag is true
+        if (isAdmin && user.role !== 'admin') {
+          return res
+            .status(403)
+            .json({ message: 'Access denied. Admin privileges required.' })
+        }
+
+        // Check if user account is suspended
+        if (user.status === 'suspend') {
+          return res.status(403).json({
+            success: false,
+            message: 'Your account has been suspended. Please contact support.',
+          })
+        }
+
+        const otp = '0000'
+
+        // Generate JWT token
+        const token = jwt.sign(
+          { id: user._id, phone: user.phone, role: user.role },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: '1d' },
+        )
+
+        res.json({
+          success: true,
+          message: 'OTP sent successfully',
+          token,
+          user: {
+            id: user._id,
+            email: user.email,
+            fullName: user.fullName,
+            phone: user.phone,
+            role: user.role,
+            status: user.status,
+          },
+        })
       }
+      // For email-based login (admin role)
+      else if (email && password) {
+        const user = await UserRegistration.findOne({ email })
 
-      // Return user profile data
-      res.json({
-        success: true,
-        user: {
-          id: user._id,
-          email: user.email,
-          fullName: user.fullName,
-          phone: user.phone,
-          birthday: user.birthday,
-          howDidYouHear: user.howDidYouHear,
-          governmentId: user.governmentId,
-          createdAt: user.createdAt,
-        },
-      })
+        if (!user) {
+          return res
+            .status(401)
+            .json({ message: 'User not found with this email' })
+        }
+
+        // For admin panel, check if user has admin role
+        if (user.role !== 'admin') {
+          return res
+            .status(403)
+            .json({ message: 'Access denied. Admin privileges required.' })
+        }
+
+        // In a real implementation, we would verify the password hash
+        // For now, we'll just use a hardcoded check for demo purposes
+        // TODO: Implement proper password hashing and verification
+        if (password !== 'admin123') {
+          return res.status(401).json({ message: 'Invalid password' })
+        }
+
+        // Generate JWT token
+        const token = jwt.sign(
+          { id: user._id, email: user.email, role: user.role },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: '1d' },
+        )
+
+        // record login event for admin email login
+        try {
+          await LoginEvent.create({ user: user._id })
+        } catch (e) {
+          console.error('LoginEvent error:', e?.message)
+        }
+
+        res.json({
+          success: true,
+          message: 'Login successful',
+          token,
+          user: {
+            id: user._id,
+            email: user.email,
+            fullName: user.fullName,
+            phone: user.phone,
+            role: user.role,
+          },
+        })
+      } else {
+        return res.status(400).json({ message: 'Phone number is required' })
+      }
     } catch (error) {
       console.error(error)
       res.status(500).json({ message: 'Server error' })
     }
   },
 
-  verifyOtp: async (req, res) => {
+  AdminverifyOtp: async (req, res) => {
     try {
       const { otp, phone } = req.body
 
@@ -97,6 +181,108 @@ module.exports = {
       res.status(500).json({ message: 'Server error' })
     }
   },
+  getProfile: async (req, res) => {
+    try {
+      const userId = req.user.id
+
+      // Find user by ID
+      const user = await UserRegistration.findById(userId)
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' })
+      }
+
+      // Return user profile data
+      res.json({
+        success: true,
+        user: {
+          id: user._id,
+          email: user.email,
+          fullName: user.fullName,
+          phone: user.phone,
+          birthday: user.birthday,
+          howDidYouHear: user.howDidYouHear,
+          governmentId: user.governmentId,
+          createdAt: user.createdAt,
+        },
+      })
+    } catch (error) {
+      console.error(error)
+      res.status(500).json({ message: 'Server error' })
+    }
+  },
+
+  verifyOtp: async (req, res) => {
+    try {
+      const { otp, phone } = req.body
+
+      if (!otp || !phone) {
+        return res
+          .status(400)
+          .json({ message: 'OTP and phone number are required' })
+      }
+
+      // Find user by phone number
+      const user = await UserRegistration.findOne({ phone })
+
+      if (!user) {
+        return res
+          .status(401)
+          .json({ message: 'User not found with this phone number' })
+      }
+
+      // Check if user account is suspended
+      if (user.status === 'suspend') {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been suspended. Please contact support.',
+        })
+      }
+
+      // Check if OTP is valid and not expired
+      if (otp !== user.otp) {
+        return res.status(401).json({ message: 'Invalid OTP' })
+      }
+      
+      if (new Date() > user.otpExpires) {
+        return res.status(401).json({ message: 'OTP has expired. Please request a new one.' })
+      }
+      
+      // Clear used OTP
+      user.otp = undefined
+      user.otpExpires = undefined
+      await user.save()
+
+      // Generate a new token after successful OTP verification (include role)
+      const token = jwt.sign(
+        { id: user._id, phone: user.phone, role: user.role },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' },
+      )
+
+      // record login event
+      try {
+        await LoginEvent.create({ user: user._id })
+      } catch (e) {
+        console.error('LoginEvent error:', e?.message)
+      }
+
+      res.json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          fullName: user.fullName,
+          phone: user.phone,
+        },
+      })
+    } catch (error) {
+      console.error(error)
+      res.status(500).json({ message: 'Server error' })
+    }
+  },
 
   register: async (req, res) => {
     try {
@@ -128,7 +314,7 @@ module.exports = {
             console.error(
               'Error: S3 is configured but req.file.location is undefined',
             )
-            // Fallback to asset root + key if location is missing
+          
             if (req.file.key) {
               governmentId = `${process.env.ASSET_ROOT}/${req.file.key}`
               console.log('Constructed S3 URL from key:', governmentId)
@@ -159,6 +345,15 @@ module.exports = {
       })
 
       await newUser.save()
+
+      // Send welcome email in background (don't await to prevent blocking)
+      sendWelcomeEmail(email, fullName.split(' ')[0])
+        .then(result => {
+          if (!result.success) {
+            console.error('Background email error:', result.error)
+            console.error('Email sending failed for:', email)
+          }
+        })
 
       res.status(201).json({
         message: 'Registration successful',
@@ -198,7 +393,18 @@ module.exports = {
           })
         }
 
-        const otp = '0000'
+        // Send OTP via Twilio
+        const { success, otp, error } = await sendOTP(phone)
+        
+        if (!success) {
+          console.error('Failed to send OTP:', error)
+          return res.status(500).json({ message: 'Failed to send OTP. Please try again.' })
+        }
+        
+        // Store OTP in user document (in production, you'd hash this)
+        user.otp = otp
+        user.otpExpires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+        await user.save()
 
         // Generate JWT token
         const token = jwt.sign(
