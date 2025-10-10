@@ -11,7 +11,7 @@ module.exports = {
     try {
       const { phone, email, password, isAdmin } = req.body
 
-      // For phone-based login (user role)
+      
       if (phone && !email && !password) {
         const user = await UserRegistration.findOne({ phone })
 
@@ -21,14 +21,14 @@ module.exports = {
             .json({ message: 'User not found with this phone number' })
         }
 
-        // Check if user has admin role when isAdmin flag is true
+      
         if (isAdmin && user.role !== 'admin') {
           return res
             .status(403)
             .json({ message: 'Access denied. Admin privileges required.' })
         }
 
-        // Check if user account is suspended
+      
         if (user.status === 'suspend') {
           return res.status(403).json({
             success: false,
@@ -223,14 +223,11 @@ module.exports = {
           .json({ message: 'OTP and phone number are required' })
       }
 
-      // Find user by phone number, explicitly including OTP fields
+      // Find user by phone number,  including OTP fields
       const user = await UserRegistration.findOne({ phone }).select('+otp +otpExpires');
       console.log('User found:', user ? 'Yes' : 'No');
       if (user) {
-        console.log('Stored OTP:', user.otp);
-        console.log('OTP Expires:', user.otpExpires);
-        console.log('Current Time:', new Date());
-        console.log('User document before verification:', JSON.stringify(user, null, 2));
+       
       }
 
       if (!user) {
@@ -239,7 +236,7 @@ module.exports = {
           .json({ message: 'User not found with this phone number' })
       }
 
-      // Check if user account is suspended
+      
       if (user.status === 'suspend') {
         return res.status(403).json({
           success: false,
@@ -247,11 +244,11 @@ module.exports = {
         })
       }
 
-      // Check if OTP is valid and not expired
+   
       const receivedOTP = otp.toString().trim();
       const storedOTP = user.otp ? user.otp.toString().trim() : null;
       
-      console.log('OTP Comparison - Received:', receivedOTP, 'Stored:', storedOTP);
+     
       
       if (receivedOTP !== storedOTP) {
         console.log('OTP Mismatch - Received:', receivedOTP, 'Expected:', storedOTP);
@@ -418,11 +415,11 @@ module.exports = {
           return res.status(500).json({ message: 'Failed to send OTP. Please try again.' })
         }
         
-        // Store OTP in user document as a string
+    
         const otpString = otp.toString().trim();
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
         
-        // Use findOneAndUpdate to ensure the update is applied
+        
         const updatedUser = await UserRegistration.findOneAndUpdate(
           { _id: user._id },
           { 
