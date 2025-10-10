@@ -215,6 +215,7 @@ module.exports = {
   verifyOtp: async (req, res) => {
     try {
       const { otp, phone } = req.body
+      console.log('OTP Verification Request:', { phone, receivedOTP: otp });
 
       if (!otp || !phone) {
         return res
@@ -222,8 +223,15 @@ module.exports = {
           .json({ message: 'OTP and phone number are required' })
       }
 
-      // Find user by phone number
-      const user = await UserRegistration.findOne({ phone })
+      // Find user by phone number, explicitly including OTP fields
+      const user = await UserRegistration.findOne({ phone }).select('+otp +otpExpires');
+      console.log('User found:', user ? 'Yes' : 'No');
+      if (user) {
+        console.log('Stored OTP:', user.otp);
+        console.log('OTP Expires:', user.otpExpires);
+        console.log('Current Time:', new Date());
+        console.log('User document before verification:', JSON.stringify(user, null, 2));
+      }
 
       if (!user) {
         return res
@@ -240,8 +248,17 @@ module.exports = {
       }
 
       // Check if OTP is valid and not expired
-      if (otp !== user.otp) {
-        return res.status(401).json({ message: 'Invalid OTP' })
+      const receivedOTP = otp.toString().trim();
+      const storedOTP = user.otp ? user.otp.toString().trim() : null;
+      
+      console.log('OTP Comparison - Received:', receivedOTP, 'Stored:', storedOTP);
+      
+      if (receivedOTP !== storedOTP) {
+        console.log('OTP Mismatch - Received:', receivedOTP, 'Expected:', storedOTP);
+        return res.status(401).json({ 
+          success: false,
+          message: 'Invalid OTP. Please check and try again.' 
+        })
       }
       
       if (new Date() > user.otpExpires) {
@@ -401,10 +418,24 @@ module.exports = {
           return res.status(500).json({ message: 'Failed to send OTP. Please try again.' })
         }
         
-        // Store OTP in user document (in production, you'd hash this)
-        user.otp = otp
-        user.otpExpires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-        await user.save()
+        // Store OTP in user document as a string
+        const otpString = otp.toString().trim();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        
+        // Use findOneAndUpdate to ensure the update is applied
+        const updatedUser = await UserRegistration.findOneAndUpdate(
+          { _id: user._id },
+          { 
+            $set: { 
+              otp: otpString,
+              otpExpires: otpExpiry 
+            } 
+          },
+          { new: true, select: '+otp +otpExpires' }
+        );
+        
+        console.log('Stored OTP:', updatedUser.otp, 'Expires at:', updatedUser.otpExpires);
+        console.log('Updated user document:', JSON.stringify(updatedUser, null, 2));
 
         // Generate JWT token
         const token = jwt.sign(
