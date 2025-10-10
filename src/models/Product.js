@@ -46,6 +46,12 @@ const ProductSchema = new mongoose.Schema(
         default: [],
       },
     ],
+    intensity: {
+      type: Number,
+      min: [1, 'Intensity must be at least 1'],
+      max: [10, 'Intensity cannot exceed 10']
+      // Made intensity optional by removing the required validation
+    },
     order: {
       type: Number,
       default: 0,

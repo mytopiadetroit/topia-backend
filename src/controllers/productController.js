@@ -61,6 +61,13 @@ exports.createProduct = async (req, res) => {
       productData.hasStock = productData.stock > 0
     }
 
+    // Ensure intensity is a number with default value 5
+    if (productData.intensity) {
+      productData.intensity = Number(productData.intensity)
+    } else {
+      productData.intensity = 5 // Default value if not provided
+    }
+
     const product = new Product(productData)
     await product.save()
 
