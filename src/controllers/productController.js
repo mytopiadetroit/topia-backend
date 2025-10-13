@@ -86,36 +86,56 @@ exports.createProduct = async (req, res) => {
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const { categoryId, limit } = req.query
-    let filter = {}
-
+    const { categoryId, limit, page = 1, pageSize = 15 } = req.query;
+    let filter = {};
+    
     if (categoryId) {
-      filter.category = categoryId
+      filter.category = categoryId;
     }
-
+    
+    // Calculate pagination
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const pageSizeNum = parseInt(pageSize, 10) || 15;
+    const skip = (pageNum - 1) * pageSizeNum;
+    
     let query = Product.find(filter)
       .populate('category', 'category')
-      .populate('reviewTags', 'label isActive')
-
+      .populate('reviewTags', 'label isActive');
+    
+   
     if (limit) {
-      const lim = Math.max(0, parseInt(limit, 10) || 0)
-      if (lim > 0) query = query.limit(lim)
+      const lim = Math.max(0, parseInt(limit, 10) || 0);
+      if (lim > 0) {
+        query = query.limit(lim);
+      }
+    } else {
+      
+      query = query.skip(skip).limit(pageSizeNum);
     }
-
-    const products = await query.exec()
-
+    
+    const products = await query.exec();
+    
+    // Get total count for pagination
+    const totalCount = await Product.countDocuments(filter);
+    
     res.status(200).json({
       success: true,
       count: products.length,
       data: products,
-    })
+      pagination: {
+        currentPage: pageNum,
+        pageSize: pageSizeNum,
+        totalItems: totalCount,
+        totalPages: Math.ceil(totalCount / pageSizeNum)
+      }
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: error.message,
-    })
+    });
   }
-}
+};
 
 exports.getProduct = async (req, res) => {
   try {

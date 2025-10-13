@@ -2,10 +2,289 @@ const UserRegistration = require('../models/User')
 const LoginEvent = require('../models/LoginEvent')
 const jwt = require('jsonwebtoken')
 const { sendWelcomeEmail } = require('../utils/emailService')
-const { sendOTP } = require('../utils/smsService')
+const { sendOTPWithVerify, verifyOTPWithVerify, sendOTP } = require('../utils/smsService');
+const USE_VERIFY_API = process.env.USE_TWILIO_VERIFY === 'true';
 
 module.exports = {
+ login: async (req, res) => {
+    try {
+      const { phone, email, password, isAdmin } = req.body
 
+      // For phone-based login (user role)
+      if (phone && !email && !password) {
+        const user = await UserRegistration.findOne({ phone })
+
+        if (!user) {
+          return res
+            .status(401)
+            .json({ message: 'User not found with this phone number' })
+        }
+
+        // Check if user has admin role when isAdmin flag is true
+        if (isAdmin && user.role !== 'admin') {
+          return res
+            .status(403)
+            .json({ message: 'Access denied. Admin privileges required.' })
+        }
+
+        // Check if user account is suspended
+        if (user.status === 'suspend') {
+          return res.status(403).json({
+            success: false,
+            message: 'Your account has been suspended. Please contact support.',
+          })
+        }
+
+        // ===== SEND OTP =====
+        let otpResult;
+        
+        if (USE_VERIFY_API) {
+          // METHOD 1: Using Twilio Verify API (Recommended)
+          console.log('Using Twilio Verify API');
+          otpResult = await sendOTPWithVerify(phone);
+          
+          if (!otpResult.success) {
+            console.error('Failed to send OTP via Verify API:', otpResult.error);
+            return res.status(500).json({ 
+              message: 'Failed to send OTP. Please try again.',
+              error: otpResult.error 
+            });
+          }
+
+          // No need to store OTP in database when using Verify API
+          // Twilio handles OTP storage and expiry
+          await UserRegistration.findOneAndUpdate(
+            { _id: user._id },
+            { 
+              $set: { 
+                otp: null, // Clear any old OTP
+                otpExpires: null,
+                usingVerifyAPI: true // Flag to know which method was used
+              } 
+            }
+          );
+
+        } else {
+          // METHOD 2: Traditional SMS method (Fallback)
+          console.log('Using Traditional SMS method');
+          otpResult = await sendOTP(phone);
+          
+          if (!otpResult.success) {
+            console.error('Failed to send OTP:', otpResult.error);
+            return res.status(500).json({ 
+              message: 'Failed to send OTP. Please try again.',
+              error: otpResult.error 
+            });
+          }
+
+          // Store OTP in database
+          const otpString = otpResult.otp.toString().trim();
+          const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+          
+          await UserRegistration.findOneAndUpdate(
+            { _id: user._id },
+            { 
+              $set: { 
+                otp: otpString,
+                otpExpires: otpExpiry,
+                usingVerifyAPI: false
+              } 
+            },
+            { new: true }
+          );
+
+          console.log('Stored OTP:', otpString, 'Expires at:', otpExpiry);
+        }
+
+        // Generate JWT token
+        const token = jwt.sign(
+          { id: user._id, phone: user.phone, role: user.role },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: '30d' },
+        )
+
+        res.json({
+          success: true,
+          message: 'OTP sent successfully',
+          token,
+          user: {
+            id: user._id,
+            email: user.email,
+            fullName: user.fullName,
+            phone: user.phone,
+            role: user.role,
+            status: user.status,
+          },
+        })
+      }
+      // For email-based login (admin role)
+      else if (email && password) {
+        const user = await UserRegistration.findOne({ email })
+
+        if (!user) {
+          return res
+            .status(401)
+            .json({ message: 'User not found with this email' })
+        }
+
+        // For admin panel, check if user has admin role
+        if (user.role !== 'admin') {
+          return res
+            .status(403)
+            .json({ message: 'Access denied. Admin privileges required.' })
+        }
+
+        // TODO: Implement proper password hashing and verification
+        if (password !== 'admin123') {
+          return res.status(401).json({ message: 'Invalid password' })
+        }
+
+        // Generate JWT token
+        const token = jwt.sign(
+          { id: user._id, email: user.email, role: user.role },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: '30d' },
+        )
+
+        // Record login event for admin email login
+        try {
+          await LoginEvent.create({ user: user._id })
+        } catch (e) {
+          console.error('LoginEvent error:', e?.message)
+        }
+
+        res.json({
+          success: true,
+          message: 'Login successful',
+          token,
+          user: {
+            id: user._id,
+            email: user.email,
+            fullName: user.fullName,
+            phone: user.phone,
+            role: user.role,
+          },
+        })
+      } else {
+        return res.status(400).json({ message: 'Phone number is required' })
+      }
+    } catch (error) {
+      console.error(error)
+      res.status(500).json({ message: 'Server error' })
+    }
+  },
+  verifyOtp: async (req, res) => {
+    try {
+      const { otp, phone } = req.body
+      console.log('OTP Verification Request:', { phone, receivedOTP: otp });
+
+      if (!otp || !phone) {
+        return res
+          .status(400)
+          .json({ message: 'OTP and phone number are required' })
+      }
+
+      // Find user by phone number
+      const user = await UserRegistration.findOne({ phone }).select('+otp +otpExpires +usingVerifyAPI');
+      console.log('User found:', user ? 'Yes' : 'No');
+
+      if (!user) {
+        return res
+          .status(401)
+          .json({ message: 'User not found with this phone number' })
+      }
+
+      if (user.status === 'suspend') {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been suspended. Please contact support.',
+        })
+      }
+
+      // ===== VERIFY OTP =====
+      let isValid = false;
+
+      if (user.usingVerifyAPI || USE_VERIFY_API) {
+        // METHOD 1: Verify using Twilio Verify API
+        console.log('Verifying OTP using Twilio Verify API');
+        const verifyResult = await verifyOTPWithVerify(phone, otp);
+        
+        if (!verifyResult.success) {
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid OTP. Please check and try again.'
+          });
+        }
+
+        isValid = verifyResult.success;
+
+      } else {
+        // METHOD 2: Traditional verification from database
+        console.log('Verifying OTP from database');
+        const receivedOTP = otp.toString().trim();
+        const storedOTP = user.otp ? user.otp.toString().trim() : null;
+
+        if (receivedOTP !== storedOTP) {
+          console.log('OTP Mismatch - Received:', receivedOTP, 'Expected:', storedOTP);
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid OTP. Please check and try again.'
+          });
+        }
+
+        if (new Date() > user.otpExpires) {
+          return res.status(401).json({ 
+            message: 'OTP has expired. Please request a new one.' 
+          });
+        }
+
+        isValid = true;
+      }
+
+      if (!isValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid OTP. Please check and try again.'
+        });
+      }
+
+      // Clear used OTP
+      user.otp = undefined;
+      user.otpExpires = undefined;
+      user.usingVerifyAPI = undefined;
+      await user.save();
+
+      // Generate a new token after successful OTP verification
+      const token = jwt.sign(
+        { id: user._id, phone: user.phone, role: user.role },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' },
+      )
+
+      // Record login event
+      try {
+        await LoginEvent.create({ user: user._id })
+      } catch (e) {
+        console.error('LoginEvent error:', e?.message)
+      }
+
+      res.json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          fullName: user.fullName,
+          phone: user.phone,
+          role: user.role,
+        },
+      })
+    } catch (error) {
+      console.error(error)
+      res.status(500).json({ message: 'Server error' })
+    }
+  },
 
   Adminlogin: async (req, res) => {
     try {
@@ -42,7 +321,7 @@ module.exports = {
         const token = jwt.sign(
           { id: user._id, phone: user.phone, role: user.role },
           process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '1d' },
+          { expiresIn: '30d' },
         )
 
         res.json({
@@ -87,7 +366,7 @@ module.exports = {
         const token = jwt.sign(
           { id: user._id, email: user.email, role: user.role },
           process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '1d' },
+          { expiresIn: '30d' },
         )
 
         // record login event for admin email login
@@ -212,91 +491,7 @@ module.exports = {
     }
   },
 
-  verifyOtp: async (req, res) => {
-    try {
-      const { otp, phone } = req.body
-      console.log('OTP Verification Request:', { phone, receivedOTP: otp });
 
-      if (!otp || !phone) {
-        return res
-          .status(400)
-          .json({ message: 'OTP and phone number are required' })
-      }
-
-      // Find user by phone number,  including OTP fields
-      const user = await UserRegistration.findOne({ phone }).select('+otp +otpExpires');
-      console.log('User found:', user ? 'Yes' : 'No');
-      if (user) {
-       
-      }
-
-      if (!user) {
-        return res
-          .status(401)
-          .json({ message: 'User not found with this phone number' })
-      }
-
-      
-      if (user.status === 'suspend') {
-        return res.status(403).json({
-          success: false,
-          message: 'Your account has been suspended. Please contact support.',
-        })
-      }
-
-   
-      const receivedOTP = otp.toString().trim();
-      const storedOTP = user.otp ? user.otp.toString().trim() : null;
-      
-     
-      
-      if (receivedOTP !== storedOTP) {
-        console.log('OTP Mismatch - Received:', receivedOTP, 'Expected:', storedOTP);
-        return res.status(401).json({ 
-          success: false,
-          message: 'Invalid OTP. Please check and try again.' 
-        })
-      }
-      
-      if (new Date() > user.otpExpires) {
-        return res.status(401).json({ message: 'OTP has expired. Please request a new one.' })
-      }
-      
-      // Clear used OTP
-      user.otp = undefined
-      user.otpExpires = undefined
-      await user.save()
-
-      // Generate a new token after successful OTP verification (include role)
-      const token = jwt.sign(
-        { id: user._id, phone: user.phone, role: user.role },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' },
-      )
-
-      // record login event
-      try {
-        await LoginEvent.create({ user: user._id })
-      } catch (e) {
-        console.error('LoginEvent error:', e?.message)
-      }
-
-      res.json({
-        success: true,
-        message: 'Login successful',
-        token,
-        user: {
-          id: user._id,
-          email: user.email,
-          fullName: user.fullName,
-          phone: user.phone,
-        },
-      })
-    } catch (error) {
-      console.error(error)
-      res.status(500).json({ message: 'Server error' })
-    }
-  },
 
   register: async (req, res) => {
     try {
@@ -378,141 +573,8 @@ module.exports = {
       res.status(500).json({ message: 'Server error' })
     }
   },
-  login: async (req, res) => {
-    try {
-      const { phone, email, password, isAdmin } = req.body
+ 
 
-      // For phone-based login (user role)
-      if (phone && !email && !password) {
-        const user = await UserRegistration.findOne({ phone })
-
-        if (!user) {
-          return res
-            .status(401)
-            .json({ message: 'User not found with this phone number' })
-        }
-
-        // Check if user has admin role when isAdmin flag is true
-        if (isAdmin && user.role !== 'admin') {
-          return res
-            .status(403)
-            .json({ message: 'Access denied. Admin privileges required.' })
-        }
-
-        // Check if user account is suspended
-        if (user.status === 'suspend') {
-          return res.status(403).json({
-            success: false,
-            message: 'Your account has been suspended. Please contact support.',
-          })
-        }
-
-        // Send OTP via Twilio
-        const { success, otp, error } = await sendOTP(phone)
-        
-        if (!success) {
-          console.error('Failed to send OTP:', error)
-          return res.status(500).json({ message: 'Failed to send OTP. Please try again.' })
-        }
-        
-    
-        const otpString = otp.toString().trim();
-        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-        
-        
-        const updatedUser = await UserRegistration.findOneAndUpdate(
-          { _id: user._id },
-          { 
-            $set: { 
-              otp: otpString,
-              otpExpires: otpExpiry 
-            } 
-          },
-          { new: true, select: '+otp +otpExpires' }
-        );
-        
-        console.log('Stored OTP:', updatedUser.otp, 'Expires at:', updatedUser.otpExpires);
-        console.log('Updated user document:', JSON.stringify(updatedUser, null, 2));
-
-        // Generate JWT token
-        const token = jwt.sign(
-          { id: user._id, phone: user.phone, role: user.role },
-          process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '1d' },
-        )
-
-        res.json({
-          success: true,
-          message: 'OTP sent successfully',
-          token,
-          user: {
-            id: user._id,
-            email: user.email,
-            fullName: user.fullName,
-            phone: user.phone,
-            role: user.role,
-            status: user.status,
-          },
-        })
-      }
-      // For email-based login (admin role)
-      else if (email && password) {
-        const user = await UserRegistration.findOne({ email })
-
-        if (!user) {
-          return res
-            .status(401)
-            .json({ message: 'User not found with this email' })
-        }
-
-        // For admin panel, check if user has admin role
-        if (user.role !== 'admin') {
-          return res
-            .status(403)
-            .json({ message: 'Access denied. Admin privileges required.' })
-        }
-
-        // In a real implementation, we would verify the password hash
-        // For now, we'll just use a hardcoded check for demo purposes
-        // TODO: Implement proper password hashing and verification
-        if (password !== 'admin123') {
-          return res.status(401).json({ message: 'Invalid password' })
-        }
-
-        // Generate JWT token
-        const token = jwt.sign(
-          { id: user._id, email: user.email, role: user.role },
-          process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '1d' },
-        )
-
-        // record login event for admin email login
-        try {
-          await LoginEvent.create({ user: user._id })
-        } catch (e) {
-          console.error('LoginEvent error:', e?.message)
-        }
-
-        res.json({
-          success: true,
-          message: 'Login successful',
-          token,
-          user: {
-            id: user._id,
-            email: user.email,
-            fullName: user.fullName,
-            phone: user.phone,
-            role: user.role,
-          },
-        })
-      } else {
-        return res.status(400).json({ message: 'Phone number is required' })
-      }
-    } catch (error) {
-      console.error(error)
-      res.status(500).json({ message: 'Server error' })
-    }
-  },
 
   updateProfile: async (req, res) => {
     try {
