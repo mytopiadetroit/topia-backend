@@ -356,3 +356,183 @@ module.exports.getLoginStatsRange = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
+
+// Admin: Get today's registrations with user details
+module.exports.getTodayRegistrations = async (req, res) => {
+  try {
+    const now = new Date()
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+
+    const users = await User.find({
+      createdAt: { $gte: startOfDay, $lt: endOfDay }
+    })
+      .select('fullName email phone createdAt status')
+      .sort({ createdAt: -1 })
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+    })
+  } catch (error) {
+    console.error('Error fetching today registrations:', error)
+    res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+}
+
+// Admin: Get today's logins with user details
+module.exports.getTodayLogins = async (req, res) => {
+  try {
+    const now = new Date()
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+
+    const loginEvents = await LoginEvent.find({
+      createdAt: { $gte: startOfDay, $lt: endOfDay }
+    })
+      .populate('user', 'fullName email phone')
+      .sort({ createdAt: -1 })
+
+    // Group by user to get unique users and their login count
+    const userLoginMap = new Map()
+    loginEvents.forEach(event => {
+      if (event.user) {
+        const userId = event.user._id.toString()
+        if (!userLoginMap.has(userId)) {
+          userLoginMap.set(userId, {
+            user: event.user,
+            loginCount: 1,
+            lastLogin: event.createdAt,
+            firstLogin: event.createdAt
+          })
+        } else {
+          const existing = userLoginMap.get(userId)
+          existing.loginCount++
+          existing.lastLogin = event.createdAt > existing.lastLogin ? event.createdAt : existing.lastLogin
+          existing.firstLogin = event.createdAt < existing.firstLogin ? event.createdAt : existing.firstLogin
+        }
+      }
+    })
+
+    const uniqueUsers = Array.from(userLoginMap.values()).map(item => ({
+      fullName: item.user.fullName,
+      email: item.user.email,
+      phone: item.user.phone,
+      loginCount: item.loginCount,
+      lastLogin: item.lastLogin,
+      firstLogin: item.firstLogin
+    }))
+
+    res.status(200).json({
+      success: true,
+      count: uniqueUsers.length,
+      totalLogins: loginEvents.length,
+      data: uniqueUsers,
+    })
+  } catch (error) {
+    console.error('Error fetching today logins:', error)
+    res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+}
+
+// Admin: Get registrations by date range
+module.exports.getRegistrationsByDate = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'startDate and endDate are required' 
+      })
+    }
+
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999)
+
+    const users = await User.find({
+      createdAt: { $gte: start, $lte: end }
+    })
+      .select('fullName email phone createdAt status')
+      .sort({ createdAt: -1 })
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+      dateRange: { start, end }
+    })
+  } catch (error) {
+    console.error('Error fetching registrations by date:', error)
+    res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+}
+
+// Admin: Get logins by date range
+module.exports.getLoginsByDate = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'startDate and endDate are required' 
+      })
+    }
+
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999)
+
+    const loginEvents = await LoginEvent.find({
+      createdAt: { $gte: start, $lte: end }
+    })
+      .populate('user', 'fullName email phone')
+      .sort({ createdAt: -1 })
+
+    // Group by user
+    const userLoginMap = new Map()
+    loginEvents.forEach(event => {
+      if (event.user) {
+        const userId = event.user._id.toString()
+        if (!userLoginMap.has(userId)) {
+          userLoginMap.set(userId, {
+            user: event.user,
+            loginCount: 1,
+            lastLogin: event.createdAt,
+            firstLogin: event.createdAt
+          })
+        } else {
+          const existing = userLoginMap.get(userId)
+          existing.loginCount++
+          existing.lastLogin = event.createdAt > existing.lastLogin ? event.createdAt : existing.lastLogin
+          existing.firstLogin = event.createdAt < existing.firstLogin ? event.createdAt : existing.firstLogin
+        }
+      }
+    })
+
+    const uniqueUsers = Array.from(userLoginMap.values()).map(item => ({
+      fullName: item.user.fullName,
+      email: item.user.email,
+      phone: item.user.phone,
+      loginCount: item.loginCount,
+      lastLogin: item.lastLogin,
+      firstLogin: item.firstLogin
+    }))
+
+    res.status(200).json({
+      success: true,
+      count: uniqueUsers.length,
+      totalLogins: loginEvents.length,
+      data: uniqueUsers,
+      dateRange: { start, end }
+    })
+  } catch (error) {
+    console.error('Error fetching logins by date:', error)
+    res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+}
