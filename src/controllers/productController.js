@@ -68,6 +68,55 @@ exports.createProduct = async (req, res) => {
       productData.intensity = 5 // Default value if not provided
     }
 
+    // Parse variants if provided
+    if (productData.variants) {
+      try {
+        if (typeof productData.variants === 'string') {
+          productData.variants = JSON.parse(productData.variants)
+        }
+        // Ensure each variant has proper types
+        if (Array.isArray(productData.variants)) {
+          productData.variants = productData.variants.map(v => ({
+            size: {
+              value: Number(v.size?.value || v.sizeValue || 0),
+              unit: v.size?.unit || v.unit || 'grams',
+            },
+            price: Number(v.price || 0),
+            stock: Number(v.stock || 0),
+            sku: v.sku ? String(v.sku).trim() : undefined,
+          }))
+        }
+      } catch (error) {
+        console.error('Error parsing variants:', error)
+        productData.variants = []
+      }
+    }
+
+    // Parse flavors if provided
+    if (productData.flavors) {
+      try {
+        if (typeof productData.flavors === 'string') {
+          productData.flavors = JSON.parse(productData.flavors)
+        }
+        if (Array.isArray(productData.flavors)) {
+          productData.flavors = productData.flavors.map(f => ({
+            name: String(f.name || '').trim(),
+            price: Number(f.price || 0),
+          })).filter(f => f.name)
+        }
+      } catch (error) {
+        console.error('Error parsing flavors:', error)
+        productData.flavors = []
+      }
+    }
+
+    // Set hasVariants flag
+    if (productData.hasVariants === 'true' || productData.hasVariants === true) {
+      productData.hasVariants = true
+    } else if (productData.hasVariants === 'false' || productData.hasVariants === false) {
+      productData.hasVariants = false
+    }
+
     const product = new Product(productData)
     await product.save()
 
@@ -328,6 +377,53 @@ exports.updateProduct = async (req, res) => {
       }
     }
 
+    // Parse variants if provided
+    if (productData.variants) {
+      try {
+        if (typeof productData.variants === 'string') {
+          productData.variants = JSON.parse(productData.variants)
+        }
+        // Ensure each variant has proper types
+        if (Array.isArray(productData.variants)) {
+          productData.variants = productData.variants.map(v => ({
+            size: {
+              value: Number(v.size?.value || v.sizeValue || 0),
+              unit: v.size?.unit || v.unit || 'grams',
+            },
+            price: Number(v.price || 0),
+            stock: Number(v.stock || 0),
+            sku: v.sku ? String(v.sku).trim() : undefined,
+          }))
+        }
+      } catch (error) {
+        console.error('Error parsing variants:', error)
+      }
+    }
+
+    // Parse flavors if provided
+    if (productData.flavors) {
+      try {
+        if (typeof productData.flavors === 'string') {
+          productData.flavors = JSON.parse(productData.flavors)
+        }
+        if (Array.isArray(productData.flavors)) {
+          productData.flavors = productData.flavors.map(f => ({
+            name: String(f.name || '').trim(),
+            price: Number(f.price || 0),
+          })).filter(f => f.name)
+        }
+      } catch (error) {
+        console.error('Error parsing flavors:', error)
+      }
+    }
+
+    // Set hasVariants flag
+    if (productData.hasVariants === 'true' || productData.hasVariants === true) {
+      productData.hasVariants = true
+    } else if (productData.hasVariants === 'false' || productData.hasVariants === false) {
+      productData.hasVariants = false
+    }
+
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       productData,
@@ -353,8 +449,7 @@ exports.updateProduct = async (req, res) => {
   }
 }
 
-// Delete a product
-// Update product order
+
 exports.updateProductOrder = async (req, res) => {
   console.log('=== UPDATE PRODUCT ORDER REQUEST ===');
   console.log('Product ID:', req.params.productId);

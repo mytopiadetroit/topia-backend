@@ -14,7 +14,7 @@ router.post('/', authenticate, authorizationRole('admin'), ctrl.createReviewTag)
 router.get(
   '/:id',
   authenticate,
-  authorizationRole('admin'),
+  
   ctrl.getReviewTagById,
 )
 router.put(

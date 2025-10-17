@@ -77,6 +77,56 @@ const ProductSchema = new mongoose.Schema(
     metaDescription: {
       type: String,
     },
+    // Product variants for different sizes with individual pricing
+    variants: [
+      {
+        size: {
+          value: {
+            type: Number,
+            required: true,
+          },
+          unit: {
+            type: String,
+            default: 'grams',
+            enum: ['grams', 'kg', 'ml', 'liters'],
+          },
+        },
+        price: {
+          type: Number,
+          required: true,
+          min: [0, 'Variant price cannot be negative'],
+        },
+        stock: {
+          type: Number,
+          default: 0,
+          min: [0, 'Variant stock cannot be negative'],
+        },
+        sku: {
+          type: String,
+          trim: true,
+        },
+      },
+    ],
+    // Flavors available for this product with individual pricing (optional)
+    flavors: [
+      {
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        price: {
+          type: Number,
+          required: true,
+          min: [0, 'Flavor price cannot be negative'],
+        },
+      },
+    ],
+    // Flag to determine if product uses variants
+    hasVariants: {
+      type: Boolean,
+      default: false,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
