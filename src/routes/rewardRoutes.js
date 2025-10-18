@@ -9,6 +9,11 @@ const {
   getAllRewardRequests,
   updateRewardStatus,
   getRewardStats,
+  getAllRewardTasks,
+  createRewardTask,
+  updateRewardTask,
+  deleteRewardTask,
+  toggleTaskVisibility,
 } = require('../controllers/rewardController')
 const {
   authenticate,
@@ -48,6 +53,38 @@ router.get(
   authenticate,
   authorizationRole('admin'),
   getRewardStats,
+)
+
+// Admin routes for task management
+router.get(
+  '/admin/tasks',
+  authenticate,
+  authorizationRole('admin'),
+  getAllRewardTasks,
+)
+router.post(
+  '/admin/tasks',
+  authenticate,
+  authorizationRole('admin'),
+  createRewardTask,
+)
+router.put(
+  '/admin/tasks/:id',
+  authenticate,
+  authorizationRole('admin'),
+  updateRewardTask,
+)
+router.delete(
+  '/admin/tasks/:id',
+  authenticate,
+  authorizationRole('admin'),
+  deleteRewardTask,
+)
+router.patch(
+  '/admin/tasks/:id/toggle-visibility',
+  authenticate,
+  authorizationRole('admin'),
+  toggleTaskVisibility,
 )
 
 module.exports = router

@@ -1,5 +1,6 @@
 const Reward = require('../models/Reward')
 const User = require('../models/User')
+const RewardTask = require('../models/RewardTask')
 
 // Task definitions
 const REWARD_TASKS = {
@@ -27,6 +28,9 @@ const getRewardTasks = async (req, res) => {
       })
     }
 
+    // Get dynamic tasks from database (only visible ones)
+    let rewardTasks = await RewardTask.find({ isVisible: true }).sort({ order: 1 })
+
     // Get user's completed tasks
     const completedTasks = await Reward.find({
       user: userId,
@@ -36,12 +40,13 @@ const getRewardTasks = async (req, res) => {
     const completedTaskIds = completedTasks.map((task) => task.taskId)
 
     // Build task list with completion status
-    const tasks = Object.keys(REWARD_TASKS).map((taskId) => ({
-      id: taskId,
-      title: REWARD_TASKS[taskId].title,
-      reward: REWARD_TASKS[taskId].reward,
-      completed: completedTaskIds.includes(taskId),
-      status: completedTasks.find((t) => t.taskId === taskId)?.status || null,
+    const tasks = rewardTasks.map((task) => ({
+      id: task.taskId,
+      title: task.title,
+      reward: task.reward,
+      description: task.description || '',
+      completed: completedTaskIds.includes(task.taskId),
+      status: completedTasks.find((t) => t.taskId === task.taskId)?.status || null,
     }))
 
     res.json({
@@ -73,14 +78,30 @@ const submitRewardClaim = async (req, res) => {
       })
     }
 
-    console.log('Received taskId:', taskId)
-    console.log('Available REWARD_TASKS:', Object.keys(REWARD_TASKS))
-    console.log('Task exists:', !!REWARD_TASKS[taskId])
+    // Check if task exists in database or fallback to default tasks
+    let taskInfo = await RewardTask.findOne({ taskId })
+    
+    if (!taskInfo) {
+      // Fallback to default tasks
+      if (REWARD_TASKS[taskId]) {
+        taskInfo = {
+          taskId,
+          title: REWARD_TASKS[taskId].title,
+          reward: REWARD_TASKS[taskId].reward,
+        }
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid task ID',
+        })
+      }
+    }
 
-    if (!taskId || !REWARD_TASKS[taskId]) {
+    // Check if task is visible
+    if (taskInfo.isVisible === false) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid task ID',
+        message: 'Task is not available',
       })
     }
 
@@ -100,8 +121,8 @@ const submitRewardClaim = async (req, res) => {
     const rewardData = {
       user: userId,
       taskId,
-      taskTitle: REWARD_TASKS[taskId].title,
-      amount: REWARD_TASKS[taskId].reward,
+      taskTitle: taskInfo.title,
+      amount: taskInfo.reward,
       proofType,
       proofText: proofText || '',
     }
@@ -407,6 +428,176 @@ const getRewardStats = async (req, res) => {
   }
 }
 
+// Admin: Get all reward tasks (including hidden ones)
+const getAllRewardTasks = async (req, res) => {
+  try {
+    const tasks = await RewardTask.find()
+      .sort({ order: 1, createdAt: -1 })
+      .populate('createdBy', 'fullName email')
+
+    res.json({
+      success: true,
+      data: tasks,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching reward tasks',
+      error: error.message,
+    })
+  }
+}
+
+// Admin: Create new reward task
+const createRewardTask = async (req, res) => {
+  try {
+    const { taskId, title, description, reward, isVisible, order } = req.body
+    const adminId = req.user?.id
+
+    if (!taskId || !title || reward === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Task ID, title, and reward are required',
+      })
+    }
+
+    // Check if taskId already exists
+    const existingTask = await RewardTask.findOne({ taskId })
+    if (existingTask) {
+      return res.status(400).json({
+        success: false,
+        message: 'Task ID already exists',
+      })
+    }
+
+    const newTask = new RewardTask({
+      taskId,
+      title,
+      description: description || '',
+      reward,
+      isVisible: isVisible !== undefined ? isVisible : true,
+      order: order || 0,
+      createdBy: adminId,
+    })
+
+    await newTask.save()
+    const populatedTask = await RewardTask.findById(newTask._id).populate(
+      'createdBy',
+      'fullName email',
+    )
+
+    res.status(201).json({
+      success: true,
+      message: 'Reward task created successfully',
+      data: populatedTask,
+    })
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: 'Error creating reward task',
+      error: error.message,
+    })
+  }
+}
+
+// Admin: Update reward task
+const updateRewardTask = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { title, description, reward, isVisible, order } = req.body
+
+    const task = await RewardTask.findById(id)
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reward task not found',
+      })
+    }
+
+    if (title !== undefined) task.title = title
+    if (description !== undefined) task.description = description
+    if (reward !== undefined) task.reward = reward
+    if (isVisible !== undefined) task.isVisible = isVisible
+    if (order !== undefined) task.order = order
+
+    await task.save()
+    const updatedTask = await RewardTask.findById(task._id).populate(
+      'createdBy',
+      'fullName email',
+    )
+
+    res.json({
+      success: true,
+      message: 'Reward task updated successfully',
+      data: updatedTask,
+    })
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: 'Error updating reward task',
+      error: error.message,
+    })
+  }
+}
+
+// Admin: Delete reward task
+const deleteRewardTask = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const task = await RewardTask.findById(id)
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reward task not found',
+      })
+    }
+
+    await RewardTask.findByIdAndDelete(id)
+
+    res.json({
+      success: true,
+      message: 'Reward task deleted successfully',
+    })
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: 'Error deleting reward task',
+      error: error.message,
+    })
+  }
+}
+
+// Admin: Toggle task visibility
+const toggleTaskVisibility = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const task = await RewardTask.findById(id)
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reward task not found',
+      })
+    }
+
+    task.isVisible = !task.isVisible
+    await task.save()
+
+    res.json({
+      success: true,
+      message: `Task ${task.isVisible ? 'shown' : 'hidden'} successfully`,
+      data: task,
+    })
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: 'Error toggling task visibility',
+      error: error.message,
+    })
+  }
+}
+
 module.exports = {
   getRewardTasks,
   submitRewardClaim,
@@ -415,4 +606,9 @@ module.exports = {
   getAllRewardRequests,
   updateRewardStatus,
   getRewardStats,
+  getAllRewardTasks,
+  createRewardTask,
+  updateRewardTask,
+  deleteRewardTask,
+  toggleTaskVisibility,
 }
