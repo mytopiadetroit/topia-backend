@@ -250,49 +250,44 @@ exports.getProductsByCategory = async (req, res) => {
 }
 
 
-exports.getProductsByCategoryPaginated = async (req, res) => {
+exports.getRelatedProducts = async (req, res) => {
   try {
-    const { categoryId } = req.params;
-    const { page = 1, limit = 10 } = req.query; 
+    const { id } = req.params
+    const { limit = 4 } = req.query
 
-    
-    const pageNumber = parseInt(page, 10);
-    const limitNumber = parseInt(limit, 10);
+    // First get the current product to find its category
+    const currentProduct = await Product.findById(id)
 
-    
-    const skip = (pageNumber - 1) * limitNumber;
+    if (!currentProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      })
+    }
 
-  
-    const total = await Product.countDocuments({ category: categoryId });
-
-  
-    const products = await Product.find({ category: categoryId })
-      .populate("category", "category")
-      .populate("reviewTags", "label isActive")
+    // Find related products in the same category, excluding current product
+    const relatedProducts = await Product.find({
+      category: currentProduct.category,
+      _id: { $ne: id }, // Exclude current product
+      hasStock: true // Only show products that are in stock
+    })
+      .populate('category', 'category')
+      .populate('reviewTags', 'label isActive')
       .sort({ order: 1 }) // Sort by order field in ascending order
-      .skip(skip)
-      .limit(limitNumber)
-      .exec();
-      
-    console.log(`Fetched ${products.length} products for category ${categoryId} in order:`, 
-      products.map(p => ({ id: p._id, name: p.name, order: p.order }))
-    );
+      .limit(parseInt(limit, 10))
 
     res.status(200).json({
       success: true,
-      total, 
-      page: pageNumber,
-      pages: Math.ceil(total / limitNumber), 
-      count: products.length,
-      data: products,
-    });
+      count: relatedProducts.length,
+      data: relatedProducts,
+    })
   } catch (error) {
     res.status(500).json({
       success: false,
       message: error.message,
-    });
+    })
   }
-};
+}
 
 exports.updateProduct = async (req, res) => {
   try {

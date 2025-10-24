@@ -53,11 +53,7 @@ router
 // Update product order
 router.put('/:productId/order', productController.updateProductOrder)
 
-// Get products by category
-router.get('/category/:categoryId', productController.getProductsByCategory)
-router.get('/category/paginated/:categoryId', productController.getProductsByCategoryPaginated)
-
-
-router.get('/menu/all', productController.getAllProducts)
+// Get related products (products from same category, excluding current product)
+router.get('/:id/related', productController.getRelatedProducts)
 
 module.exports = router
