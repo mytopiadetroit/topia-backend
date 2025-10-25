@@ -220,31 +220,41 @@ exports.getProduct = async (req, res) => {
 exports.getProductsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params
-    const { limit } = req.query
+    const { page = 1, limit = 10 } = req.query
+    
+    const pageNumber = parseInt(page, 10)
+    const limitNumber = parseInt(limit, 10)
+    const skip = (pageNumber - 1) * limitNumber
+
+    // Get total count of products in this category
+    const total = await Product.countDocuments({ category: categoryId })
 
     let query = Product.find({ category: categoryId })
       .populate('category', 'category')
       .populate('reviewTags', 'label isActive')
       .sort({ order: 1 }) // Sort by order field in ascending order
+      .skip(skip)
+      .limit(limitNumber)
       
-    console.log(`Fetching products for category ${categoryId} sorted by order`);
-
-    const lim = limit != null ? parseInt(limit, 10) : 3 // default to 3 for category sections
-    if (!Number.isNaN(lim) && lim > 0) {
-      query = query.limit(lim)
-    }
+    console.log(`Fetching products for category ${categoryId}, page ${pageNumber}, limit ${limitNumber}`)
 
     const products = await query.exec()
+    const totalPages = Math.ceil(total / limitNumber)
 
     res.status(200).json({
       success: true,
       count: products.length,
+      total,
+      page: pageNumber,
+      totalPages,
       data: products,
     })
   } catch (error) {
+    console.error('Error fetching products by category:', error)
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: 'Error fetching products by category',
+      error: error.message,
     })
   }
 }

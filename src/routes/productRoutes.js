@@ -56,4 +56,7 @@ router.put('/:productId/order', productController.updateProductOrder)
 // Get related products (products from same category, excluding current product)
 router.get('/:id/related', productController.getRelatedProducts)
 
+// Get products by category with pagination
+router.get('/category/paginated/:categoryId', productController.getProductsByCategory)
+
 module.exports = router
