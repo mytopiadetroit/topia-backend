@@ -107,19 +107,33 @@ const ProductSchema = new mongoose.Schema(
         },
       },
     ],
-    // Flavors available for this product with individual pricing (optional)
+    // Flavors available for this product with individual pricing and stock (optional)
     flavors: [
       {
         name: {
           type: String,
-          required: true,
+          required: [true, 'Flavor name is required'],
           trim: true,
         },
         price: {
           type: Number,
-          required: true,
+          required: [true, 'Flavor price is required'],
           min: [0, 'Flavor price cannot be negative'],
         },
+        stock: {
+          type: Number,
+          required: [true, 'Flavor stock is required'],
+          min: [0, 'Stock cannot be negative'],
+          default: 0
+        },
+        sku: {
+          type: String,
+          trim: true,
+        },
+        isActive: {
+          type: Boolean,
+          default: true
+        }
       },
     ],
     // Flag to determine if product uses variants

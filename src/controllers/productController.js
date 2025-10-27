@@ -102,7 +102,10 @@ exports.createProduct = async (req, res) => {
           productData.flavors = productData.flavors.map(f => ({
             name: String(f.name || '').trim(),
             price: Number(f.price || 0),
-          })).filter(f => f.name)
+            stock: Number(f.stock || 0),
+            sku: f.sku ? String(f.sku).trim() : undefined,
+            isActive: f.isActive !== undefined ? Boolean(f.isActive) : true
+          })).filter(f => f.name) // Remove empty flavor names
         }
       } catch (error) {
         console.error('Error parsing flavors:', error)
@@ -415,10 +418,38 @@ exports.updateProduct = async (req, res) => {
           productData.flavors = productData.flavors.map(f => ({
             name: String(f.name || '').trim(),
             price: Number(f.price || 0),
-          })).filter(f => f.name)
+            stock: Number(f.stock || 0),
+            sku: f.sku ? String(f.sku).trim() : undefined,
+            isActive: f.isActive !== undefined ? Boolean(f.isActive) : true
+          })).filter(f => f.name) // Remove empty flavor names
+          
+          // If this is an update, preserve existing flavors that aren't being modified
+          if (req.params.id) {
+            const existingProduct = await Product.findById(req.params.id);
+            if (existingProduct && existingProduct.flavors) {
+              const existingFlavors = existingProduct.flavors.reduce((acc, flavor) => {
+                acc[flavor.name] = flavor;
+                return acc;
+              }, {});
+              
+              productData.flavors = productData.flavors.map(flavor => {
+                // If flavor exists, preserve its _id and merge with updates
+                if (existingFlavors[flavor.name]) {
+                  return {
+                    ...existingFlavors[flavor.name].toObject(),
+                    ...flavor,
+                    _id: existingFlavors[flavor.name]._id
+                  };
+                }
+                return flavor;
+              });
+            }
+          }
         }
       } catch (error) {
-        console.error('Error parsing flavors:', error)
+        console.error('Error parsing flavors:', error);
+        // Don't override existing flavors if there's an error
+        delete productData.flavors;
       }
     }
 

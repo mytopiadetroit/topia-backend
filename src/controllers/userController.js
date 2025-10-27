@@ -6,12 +6,31 @@ const getAllUsers = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
     const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1)
+    const { status, search } = req.query
 
-    const totalUsers = await User.countDocuments({})
+    // Build query
+    const query = {}
+    
+    // Status filter
+    if (status && ['pending', 'suspend', 'verified'].includes(status)) {
+      query.status = status
+    }
+    
+    // Search filter
+    if (search && search.trim() !== '') {
+      const searchRegex = new RegExp(search, 'i')
+      query.$or = [
+        { fullName: { $regex: searchRegex } },
+        { email: { $regex: searchRegex } },
+        { phone: { $regex: searchRegex } }
+      ]
+    }
+
+    const totalUsers = await User.countDocuments(query)
     const totalPages = Math.ceil(totalUsers / limit) || 1
     const skip = (page - 1) * limit
 
-    const users = await User.find({})
+    const users = await User.find(query)
       .select('-__v')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -104,12 +123,20 @@ const updateUser = async (req, res) => {
 const updateUserStatus = async (req, res) => {
   try {
     const { id } = req.params
-    const { status } = req.body || {}
+    const { status, reason = '' } = req.body || {}
     const allowed = ['pending', 'suspend', 'verified']
+    
     if (!allowed.includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' })
     }
 
+    // Get the user before updating to check status change
+    const oldUser = await User.findById(id)
+    if (!oldUser) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    // Update user status
     const user = await User.findByIdAndUpdate(
       id,
       { status },
@@ -120,14 +147,41 @@ const updateUserStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' })
     }
 
+    // Import email service
+    const { sendAccountSuspendedEmail, sendAccountVerifiedEmail } = require('../utils/emailService')
+
+    // Send appropriate email based on status change
+    if (oldUser.status !== status) {
+      try {
+        if (status === 'suspend') {
+          await sendAccountSuspendedEmail(user.email, user.fullName || 'User', reason)
+          console.log(`Suspension email sent to ${user.email}`)
+        } else if (status === 'verified' && oldUser.status !== 'verified') {
+          await sendAccountVerifiedEmail(user.email, user.fullName || 'User')
+          console.log(`Verification email sent to ${user.email}`)
+        }
+      } catch (emailError) {
+        console.error('Error sending status update email:', emailError)
+        // Don't fail the request if email fails, just log it
+      }
+    }
+
     return res
       .status(200)
-      .json({ success: true, message: 'Status updated', data: user })
+      .json({ 
+        success: true, 
+        message: `Status updated to ${status}`,
+        data: user 
+      })
   } catch (error) {
     console.error('Error updating user status:', error)
     return res
       .status(500)
-      .json({ success: false, message: 'Internal server error' })
+      .json({ 
+        success: false, 
+        message: 'Internal server error',
+        error: error.message 
+      })
   }
 }
 

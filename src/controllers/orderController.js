@@ -154,7 +154,7 @@ exports.getAllOrders = async (req, res) => {
     const skip = (page - 1) * limit
 
     const orders = await Order.find(criteria)
-      .populate('user', 'name email')
+       .populate('user', 'fullName email')
       .populate('items.product', 'name price images')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -196,7 +196,7 @@ exports.updateOrderStatus = async (req, res) => {
       orderId,
       { status },
       { new: true, runValidators: true },
-    ).populate('user', 'name email')
+    ).populate('user', 'fullName email')
 
     if (shouldRevert && wasPending) {
       for (const item of prev.items || []) {

@@ -13,6 +13,7 @@ const adminRoutes = require('./routes/adminRoutes')
 const wishlistRoutes = require('./routes/wishlistRoutes')
 const shopSettingsRoutes = require('./routes/shopSettingsRoutes')
 const galleryRoutes = require('./routes/galleryRoutes')
+const homepageSettingsRoutes = require('./routes/homepageSettingsRoutes')
 
 module.exports = (app) => {
     app.use('/api/shop-settings', shopSettingsRoutes)
@@ -30,5 +31,6 @@ module.exports = (app) => {
   app.use('/api/admin', adminRoutes)
   app.use('/api/wishlist', wishlistRoutes)
   app.use('/api/gallery', galleryRoutes)
+  app.use('/api/homepage-settings', homepageSettingsRoutes)
 
 }
