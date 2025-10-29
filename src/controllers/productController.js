@@ -56,9 +56,12 @@ exports.createProduct = async (req, res) => {
     }
 
     // Normalize stock/hasStock
-    if (productData.stock != null) {
-      productData.stock = Number(productData.stock) || 0
+    if (productData.stock != null && productData.stock !== '') {
+      productData.stock = Number(productData.stock)
       productData.hasStock = productData.stock > 0
+    } else {
+      productData.stock = null
+      productData.hasStock = false
     }
 
     // Ensure intensity is a number with default value 5
