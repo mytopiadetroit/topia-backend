@@ -24,8 +24,6 @@ const getActiveGalleryImages = async (req, res) => {
 const getAllGalleryImages = async (req, res) => {
   try {
     const images = await Gallery.find()
-      .sort({ order: 1, createdAt: -1 })
-      .populate('uploadedBy', 'fullName email')
 
     res.json({
       success: true,

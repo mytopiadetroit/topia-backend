@@ -14,9 +14,11 @@ const wishlistRoutes = require('./routes/wishlistRoutes')
 const shopSettingsRoutes = require('./routes/shopSettingsRoutes')
 const galleryRoutes = require('./routes/galleryRoutes')
 const homepageSettingsRoutes = require('./routes/homepageSettingsRoutes')
+const settingRoute = require('./routes/settingRoute')
+const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
-    app.use('/api/shop-settings', shopSettingsRoutes)
+  app.use('/api/shop-settings', shopSettingsRoutes)
   app.use('/api/auth', authRoutes)
   app.use('/api/products', productRoutes)
   app.use('/api/categories', categoryRoutes)
@@ -32,5 +34,7 @@ module.exports = (app) => {
   app.use('/api/wishlist', wishlistRoutes)
   app.use('/api/gallery', galleryRoutes)
   app.use('/api/homepage-settings', homepageSettingsRoutes)
+  app.use('/api/setting', settingRoute)
+  app.get('/api/pagesetting', getAllsettingImages)
 
 }

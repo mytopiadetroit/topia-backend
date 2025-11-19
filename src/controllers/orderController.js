@@ -148,13 +148,14 @@ exports.getAllOrders = async (req, res) => {
 
     const criteria = {}
     if (status) criteria.status = status
-
+    if (req.query.userid) criteria.user = req.query.userid
+    console.log(criteria)
     const total = await Order.countDocuments(criteria)
     const totalPages = Math.ceil(total / limit) || 1
     const skip = (page - 1) * limit
 
     const orders = await Order.find(criteria)
-       .populate('user', 'fullName email')
+      .populate('user', 'fullName email')
       .populate('items.product', 'name price images')
       .sort({ createdAt: -1 })
       .skip(skip)

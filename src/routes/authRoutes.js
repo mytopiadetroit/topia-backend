@@ -10,6 +10,7 @@ const {
   AdminverifyOtp,
   Adminlogin,
 } = require('../controllers/authController')
+const { getAllsettingImages } = require('../controllers/settingController')
 
 router.post('/register', upload.single('govId'), register)
 
@@ -35,5 +36,7 @@ router.get(
   require('../middlewares/authMiddleware').authenticate,
   getProfile,
 )
+
+router.get('/pagesetting', getAllsettingImages)
 
 module.exports = router

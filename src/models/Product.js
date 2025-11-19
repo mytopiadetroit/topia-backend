@@ -17,6 +17,9 @@ const ProductSchema = new mongoose.Schema(
       default: null,
       min: [0, 'Stock cannot be negative'],
     },
+    short_description: {
+      type: String,
+    },
     description: {
       main: {
         type: String,
