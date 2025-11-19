@@ -1,4 +1,4 @@
-const setting = require("../models/setting")
+const setting = require("../models/Setting")
 
 
 
