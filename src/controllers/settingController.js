@@ -5,7 +5,7 @@ const setting = require("../models/setting")
 // // Get all active setting images (public)
 const getActivesettingImages = async (req, res) => {
     try {
-        const images = await Setting.find()
+        const images = await setting.find()
 
         res.json({
             success: true,
