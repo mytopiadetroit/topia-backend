@@ -11,6 +11,10 @@ const ReviewTagSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    tooltip: {
+      type: String,
+    }
+
   },
   { timestamps: true },
 )

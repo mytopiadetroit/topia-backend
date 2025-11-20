@@ -2,12 +2,12 @@ const ReviewTag = require('../models/ReviewTag')
 
 exports.createReviewTag = async (req, res) => {
   try {
-    const { label, isActive = true } = req.body || {}
+    const { label, isActive = true, tooltip = '' } = req.body || {}
     if (!label)
       return res
         .status(400)
         .json({ success: false, message: 'Label is required' })
-    const tag = await ReviewTag.create({ label, isActive })
+    const tag = await ReviewTag.create({ label, isActive, tooltip })
     return res.status(201).json({ success: true, data: tag })
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message })
