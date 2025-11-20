@@ -44,7 +44,7 @@ const OrderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'unfulfilled', 'fulfilled', 'incomplete'],
+      enum: ['pending', 'unfulfilled', 'fulfilled', 'incomplete', 'cancelled'],
       default: 'pending',
     },
     shippingAddress: {
@@ -56,7 +56,7 @@ const OrderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      default: 'pay_at_pickup', // pay at store during pickup
+      default: 'pay_at_pickup', 
     },
     orderNumber: {
       type: String,

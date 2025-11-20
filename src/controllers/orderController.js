@@ -230,6 +230,59 @@ exports.updateOrderStatus = async (req, res) => {
   }
 }
 
+// Cancel order (user can cancel their own order)
+exports.cancelOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Find the order by orderNumber and user
+    const order = await Order.findOne({ orderNumber: id, user: userId });
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found or you do not have permission to cancel this order',
+      });
+    }
+
+    // Check if order can be cancelled
+    if (!['pending', 'unfulfilled', 'incomplete'].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This order cannot be cancelled as it has already been processed',
+      });
+    }
+
+    // Restore product stock
+    for (const item of order.items) {
+      const product = await Product.findById(item.product);
+      if (product) {
+        product.stock = (product.stock || 0) + (item.quantity || 1);
+        product.hasStock = product.stock > 0;
+        await product.save();
+      }
+    }
+
+    // Update order status to cancelled
+    order.status = 'cancelled';
+    order.updatedAt = Date.now();
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Order cancelled successfully',
+      order,
+    });
+  } catch (error) {
+    console.error('Error cancelling order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error cancelling order',
+      error: error.message,
+    });
+  }
+};
+
 // Delete order (admin only)
 exports.deleteOrder = async (req, res) => {
   try {

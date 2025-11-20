@@ -534,7 +534,7 @@ module.exports = {
         return res.status(404).json({ message: 'User not found' })
       }
 
-      // Return user profile data
+      // Return user profile data with status
       res.json({
         success: true,
         user: {
@@ -546,6 +546,7 @@ module.exports = {
           howDidYouHear: user.howDidYouHear,
           governmentId: user.governmentId,
           createdAt: user.createdAt,
+          status: user.status || 'pending', // Include status with a default of 'pending'
         },
       })
     } catch (error) {

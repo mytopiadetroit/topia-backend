@@ -81,6 +81,25 @@ const ProductSchema = new mongoose.Schema(
       type: String,
     },
     // Product variants for different sizes with individual pricing
+    // Allergen information
+    allergenInfo: {
+      hasAllergens: {
+        type: Boolean,
+        default: false
+      },
+      allergenImages: {
+        type: [String],
+        default: []
+      },
+      allergenImage: {
+        type: String,
+        default: ''
+      },
+      tooltipText: {
+        type: String,
+        default: 'This product may contain allergens. Please check with staff before consuming.'
+      }
+    },
     variants: [
       {
         size: {

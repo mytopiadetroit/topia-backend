@@ -71,6 +71,54 @@ exports.createProduct = async (req, res) => {
       productData.intensity = 5 // Default value if not provided
     }
 
+    // Parse allergenInfo if provided
+    console.log('Original allergenInfo in createProduct:', productData.allergenInfo);
+    if (productData.allergenInfo) {
+      try {
+        if (typeof productData.allergenInfo === 'string') {
+          productData.allergenInfo = JSON.parse(productData.allergenInfo);
+        }
+        
+        // For backward compatibility, handle both single image and multiple images
+        const hasAllergens = Boolean(productData.allergenInfo.hasAllergens);
+        let allergenImages = [];
+        
+        // If allergenImages is provided, use it
+        if (productData.allergenInfo.allergenImages) {
+          allergenImages = Array.isArray(productData.allergenInfo.allergenImages) 
+            ? productData.allergenInfo.allergenImages 
+            : [productData.allergenInfo.allergenImages];
+        } 
+        // If only allergenImage is provided, use it as the first image
+        else if (productData.allergenInfo.allergenImage) {
+          allergenImages = [productData.allergenInfo.allergenImage];
+        }
+        
+        // Ensure all images are strings and filter out any empty values
+        allergenImages = allergenImages.map(String).filter(img => img.trim() !== '');
+        
+        // Set the first image as the main allergenImage for backward compatibility
+        const mainImage = allergenImages.length > 0 ? allergenImages[0] : '';
+        
+        productData.allergenInfo = {
+          hasAllergens,
+          allergenImages,
+          allergenImage: mainImage, // Keep for backward compatibility
+          tooltipText: productData.allergenInfo.tooltipText || 'This product may contain allergens.'
+        };
+        
+        console.log('Processed allergenInfo in createProduct:', productData.allergenInfo);
+      } catch (error) {
+        console.error('Error parsing allergenInfo:', error);
+        productData.allergenInfo = {
+          hasAllergens: false,
+          allergenImages: [],
+          allergenImage: '',
+          tooltipText: 'This product may contain allergens.'
+        };
+      }
+    }
+
     // Parse variants if provided
     if (productData.variants) {
       try {
@@ -123,8 +171,14 @@ exports.createProduct = async (req, res) => {
       productData.hasVariants = false
     }
 
+    console.log('Final product data before save in createProduct:', productData);
     const product = new Product(productData)
     await product.save()
+    console.log('Product saved with allergenInfo:', {
+      _id: product._id,
+      name: product.name,
+      allergenInfo: product.allergenInfo
+    });
 
     res.status(201).json({
       success: true,
@@ -388,6 +442,88 @@ exports.updateProduct = async (req, res) => {
       }
     }
 
+    // Parse allergenInfo if provided
+    console.log('Original allergenInfo in updateProduct:', productData.allergenInfo);
+    if (productData.allergenInfo) {
+      try {
+        if (typeof productData.allergenInfo === 'string') {
+          productData.allergenInfo = JSON.parse(productData.allergenInfo);
+        }
+        
+        // For backward compatibility, handle both single image and multiple images
+        const hasAllergens = Boolean(productData.allergenInfo.hasAllergens);
+        let allergenImages = [];
+        
+        // If updating with new images (from file upload)
+        if (req.files && req.files.length > 0) {
+          const newImages = req.files.map(file => file.location || `/uploads/${file.filename}`);
+          
+          // If there are existing images, combine them with new ones
+          if (productData.allergenInfo.allergenImages) {
+            const existingImages = Array.isArray(productData.allergenInfo.allergenImages)
+              ? productData.allergenInfo.allergenImages
+              : [productData.allergenInfo.allergenImage].filter(Boolean);
+            
+            allergenImages = [...existingImages, ...newImages];
+          } else {
+            allergenImages = newImages;
+          }
+        } 
+        // If no new files but we have existing images
+        else if (productData.allergenInfo.allergenImages) {
+          allergenImages = Array.isArray(productData.allergenInfo.allergenImages)
+            ? productData.allergenInfo.allergenImages
+            : [productData.allergenInfo.allergenImages];
+        }
+        // Fallback to single image for backward compatibility
+        else if (productData.allergenInfo.allergenImage) {
+          allergenImages = [productData.allergenInfo.allergenImage];
+        }
+        
+        // Ensure all images are strings and filter out any empty values
+        allergenImages = allergenImages.map(String).filter(img => img.trim() !== '');
+        
+        // Set the first image as the main allergenImage for backward compatibility
+        const mainImage = allergenImages.length > 0 ? allergenImages[0] : '';
+        
+        productData.allergenInfo = {
+          hasAllergens,
+          allergenImages,
+          allergenImage: mainImage, // Keep for backward compatibility
+          tooltipText: productData.allergenInfo.tooltipText || 'This product may contain allergens.'
+        };
+        
+        console.log('Processed allergenInfo in updateProduct:', productData.allergenInfo);
+      } catch (error) {
+        console.error('Error parsing allergenInfo:', error);
+        // If there's an error, set default values
+        productData.allergenInfo = {
+          hasAllergens: false,
+          allergenImages: [],
+          allergenImage: '',
+          tooltipText: 'This product may contain allergens.'
+        };
+      }
+    } else if (req.files && req.files.length > 0) {
+      // If no allergenInfo but we have new files to upload
+      const newImages = req.files.map(file => file.location || `/uploads/${file.filename}`);
+      
+      productData.allergenInfo = {
+        hasAllergens: true,
+        allergenImages: newImages,
+        allergenImage: newImages[0] || '',
+        tooltipText: 'This product may contain allergens.'
+      };
+    } else {
+      // If no allergenInfo is provided, set default values
+      productData.allergenInfo = {
+        hasAllergens: false,
+        allergenImages: [],
+        allergenImage: '',
+        tooltipText: 'This product may contain allergens.'
+      };
+    }
+
     // Parse variants if provided
     if (productData.variants) {
       try {
@@ -463,13 +599,22 @@ exports.updateProduct = async (req, res) => {
       productData.hasVariants = false
     }
 
-    const product = await Product.findByIdAndUpdate(
+    console.log('Final product data before update in updateProduct:', productData);
+    const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
-      productData,
+      { $set: productData },
       { new: true, runValidators: true },
     )
+    
+    if (updatedProduct) {
+      console.log('Product updated with allergenInfo:', {
+        _id: updatedProduct._id,
+        name: updatedProduct.name,
+        allergenInfo: updatedProduct.allergenInfo
+      });
+    }
 
-    if (!product) {
+    if (!updatedProduct) {
       return res.status(404).json({
         success: false,
         message: 'Product not found',
@@ -478,7 +623,7 @@ exports.updateProduct = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: product,
+      data: updatedProduct,
     })
   } catch (error) {
     res.status(400).json({
@@ -525,7 +670,7 @@ exports.updateProductOrder = async (req, res) => {
     console.log('Product order updated successfully:', product);
     res.status(200).json({
       success: true,
-      data: product,
+      data: updatedProduct,
     });
   } catch (error) {
     console.error('Error updating product order:', error);

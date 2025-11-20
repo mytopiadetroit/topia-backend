@@ -15,6 +15,9 @@ router.get('/orders/:id', orderController.getOrder)
 // Get all orders for current user
 router.get('/orders', orderController.getUserOrders)
 
+// Cancel order (user can cancel their own order)
+router.put('/orders/:id/cancel', orderController.cancelOrder)
+
 // Admin routes (protected by role)
 router.get(
   '/admin/orders',
