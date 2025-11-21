@@ -96,8 +96,7 @@ const ProductSchema = new mongoose.Schema(
         default: ''
       },
       tooltipText: {
-        type: String,
-        default: 'This product may contain allergens. Please check with staff before consuming.'
+        type: String
       }
     },
     variants: [

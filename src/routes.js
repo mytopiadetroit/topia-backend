@@ -18,23 +18,26 @@ const settingRoute = require('./routes/settingRoute')
 const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
+  // Public routes - no authentication required
   app.use('/api/shop-settings', shopSettingsRoutes)
+  app.use('/api/homepage-settings', homepageSettingsRoutes)
   app.use('/api/auth', authRoutes)
   app.use('/api/products', productRoutes)
   app.use('/api/categories', categoryRoutes)
-  app.use('/api/users', userRoutes)
-  app.use('/api', orderRoutes)
   app.use('/api/reviews', reviewRoutes)
   app.use('/api/review-tags', reviewTagRoutes)
   app.use('/api/subscribers', subscriberRoutes)
   app.use('/api/contacts', contactRoutes)
   app.use('/api/content', contentRoutes)
+  app.use('/api/gallery', galleryRoutes)
+  app.use('/api/setting', settingRoute)
+  app.get('/api/pagesetting', getAllsettingImages)
+  
+  // Protected routes - authentication required
+  app.use('/api/users', userRoutes)
   app.use('/api/rewards', rewardRoutes)
   app.use('/api/admin', adminRoutes)
   app.use('/api/wishlist', wishlistRoutes)
-  app.use('/api/gallery', galleryRoutes)
-  app.use('/api/homepage-settings', homepageSettingsRoutes)
-  app.use('/api/setting', settingRoute)
-  app.get('/api/pagesetting', getAllsettingImages)
+  app.use('/api', orderRoutes) // Mounted on /api because routes already have /orders and /admin/orders paths
 
 }

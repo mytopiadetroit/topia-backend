@@ -12,7 +12,7 @@ const getAllUsers = async (req, res) => {
     const query = {}
     
     // Status filter
-    if (status && ['pending', 'suspend', 'verified'].includes(status)) {
+    if (status && ['pending', 'suspend', 'verified', 'incomplete'].includes(status)) {
       query.status = status
     }
     
@@ -124,7 +124,7 @@ const updateUserStatus = async (req, res) => {
   try {
     const { id } = req.params
     const { status, reason = '' } = req.body || {}
-    const allowed = ['pending', 'suspend', 'verified']
+    const allowed = ['pending', 'suspend', 'verified', 'incomplete']
     
     if (!allowed.includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' })

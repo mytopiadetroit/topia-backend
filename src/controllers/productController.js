@@ -100,12 +100,18 @@ exports.createProduct = async (req, res) => {
         // Set the first image as the main allergenImage for backward compatibility
         const mainImage = allergenImages.length > 0 ? allergenImages[0] : '';
         
-        productData.allergenInfo = {
+        // Only include tooltipText if it was explicitly provided
+        const updatedAllergenInfo = {
           hasAllergens,
           allergenImages,
           allergenImage: mainImage, // Keep for backward compatibility
-          tooltipText: productData.allergenInfo.tooltipText || 'This product may contain allergens.'
         };
+        
+        if (productData.allergenInfo.tooltipText !== undefined) {
+          updatedAllergenInfo.tooltipText = productData.allergenInfo.tooltipText;
+        }
+        
+        productData.allergenInfo = updatedAllergenInfo;
         
         console.log('Processed allergenInfo in createProduct:', productData.allergenInfo);
       } catch (error) {
@@ -113,8 +119,8 @@ exports.createProduct = async (req, res) => {
         productData.allergenInfo = {
           hasAllergens: false,
           allergenImages: [],
-          allergenImage: '',
-          tooltipText: 'This product may contain allergens.'
+          allergenImage: ''
+          // Don't set tooltipText here, let the model use its default
         };
       }
     }
@@ -490,7 +496,7 @@ exports.updateProduct = async (req, res) => {
           hasAllergens,
           allergenImages,
           allergenImage: mainImage, // Keep for backward compatibility
-          tooltipText: productData.allergenInfo.tooltipText || 'This product may contain allergens.'
+          tooltipText: productData.allergenInfo.tooltipText
         };
         
         console.log('Processed allergenInfo in updateProduct:', productData.allergenInfo);
@@ -500,8 +506,8 @@ exports.updateProduct = async (req, res) => {
         productData.allergenInfo = {
           hasAllergens: false,
           allergenImages: [],
-          allergenImage: '',
-          tooltipText: 'This product may contain allergens.'
+          allergenImage: ''
+          // Don't set tooltipText here, let the model use its default
         };
       }
     } else if (req.files && req.files.length > 0) {
@@ -511,16 +517,16 @@ exports.updateProduct = async (req, res) => {
       productData.allergenInfo = {
         hasAllergens: true,
         allergenImages: newImages,
-        allergenImage: newImages[0] || '',
-        tooltipText: 'This product may contain allergens.'
+        allergenImage: newImages[0] || ''
+        // Don't set tooltipText here, let the model use its default
       };
     } else {
-      // If no allergenInfo is provided, set default values
+      // If no allergenInfo is provided, set default values without tooltipText
       productData.allergenInfo = {
         hasAllergens: false,
         allergenImages: [],
-        allergenImage: '',
-        tooltipText: 'This product may contain allergens.'
+        allergenImage: ''
+        // Don't set tooltipText here, let the model use its default
       };
     }
 

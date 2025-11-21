@@ -6,11 +6,13 @@ const {
   toggleRewardsSection,
   toggleFeedbackSection
 } = require('../controllers/homepageSettingsController');
+// const { authenticate } = require('../middlewares/authMiddleware');
 
-router.route('/')
-  .get(getHomepageSettings)
-  .put(updateHomepageSettings);
+// Public endpoint - no authentication required
+router.get('/', getHomepageSettings);
 
+// Admin endpoints - authentication can be added later if needed
+router.put('/', updateHomepageSettings);
 router.put('/toggle-rewards', toggleRewardsSection);
 router.put('/toggle-feedback', toggleFeedbackSection);
 

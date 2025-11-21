@@ -49,7 +49,7 @@ const userRegistrationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'suspend', 'verified'],
+    enum: ['pending', 'suspend', 'verified', 'incomplete'],
     default: 'pending',
   },
   otp: {

@@ -41,6 +41,15 @@ app.get('/', (req, res) => {
   res.status(200).json({ status: 'OK' })
 })
 
+// Test public endpoint
+app.get('/api/test-public', (req, res) => {
+  res.status(200).json({ 
+    success: true, 
+    message: 'Public endpoint working!',
+    timestamp: new Date().toISOString()
+  })
+})
+
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack)
