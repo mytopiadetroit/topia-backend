@@ -29,7 +29,77 @@ const getRewardTasks = async (req, res) => {
     }
 
     // Get dynamic tasks from database (only visible ones)
-    let rewardTasks = await RewardTask.find({ isVisible: true }).sort({ order: 1 })
+    // Filter tasks based on visibility type:
+    // - 'all': Show to all users
+    // - 'specific': Show only if user is in assignedUsers array
+    console.log('🔍 Fetching tasks for user:', userId);
+    console.log('👤 User type:', typeof userId);
+    
+    // First, let's check ALL tasks in database
+    const allTasks = await RewardTask.find({});
+    console.log('📊 Total tasks in database:', allTasks.length);
+    console.log('📊 All tasks:', allTasks.map(t => ({
+      taskId: t.taskId,
+      title: t.title,
+      isVisible: t.isVisible,
+      visibilityType: t.visibilityType,
+      assignedUsers: t.assignedUsers?.map(id => id.toString()) || []
+    })));
+    
+    // Convert userId to ObjectId for proper comparison
+    const mongoose = require('mongoose');
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    
+    // Check visible tasks
+    const visibleTasks = await RewardTask.find({ isVisible: true });
+    console.log('👁️ Visible tasks:', visibleTasks.length);
+    
+    // Check tasks with visibilityType 'all'
+    const allUserTasks = await RewardTask.find({ 
+      isVisible: true, 
+      visibilityType: 'all' 
+    });
+    console.log('🌍 Tasks for all users:', allUserTasks.length);
+    
+    // Check tasks with visibilityType 'specific'
+    const specificTasks = await RewardTask.find({ 
+      isVisible: true, 
+      visibilityType: 'specific' 
+    });
+    console.log('🎯 Specific tasks:', specificTasks.length);
+    console.log('🎯 Specific tasks details:', specificTasks.map(t => ({
+      taskId: t.taskId,
+      title: t.title,
+      assignedUsers: t.assignedUsers?.map(id => id.toString()) || [],
+      hasCurrentUser: t.assignedUsers?.some(id => id.toString() === userId.toString())
+    })));
+    
+    // Check if current user is in any specific task
+    const userSpecificTasks = await RewardTask.find({
+      isVisible: true,
+      visibilityType: 'specific',
+      assignedUsers: userObjectId
+    });
+    console.log('👤 Tasks assigned to current user:', userSpecificTasks.length);
+    
+    let rewardTasks = await RewardTask.find({
+      isVisible: true,
+      $or: [
+        { visibilityType: 'all' },
+        { visibilityType: { $exists: false } }, // Handle old tasks without visibilityType
+        { visibilityType: null }, // Handle null visibilityType
+        { visibilityType: 'specific', assignedUsers: userObjectId }
+      ]
+    }).sort({ order: 1 })
+    
+    console.log('📋 Found tasks after filter:', rewardTasks.length);
+    console.log('📝 Filtered tasks details:', rewardTasks.map(t => ({
+      taskId: t.taskId,
+      title: t.title,
+      visibilityType: t.visibilityType,
+      assignedUsers: t.assignedUsers?.map(id => id.toString()) || [],
+      isUserAssigned: t.assignedUsers?.some(id => id.toString() === userId.toString())
+    })));
 
     // Get user's completed tasks
     const completedTasks = await Reward.find({
@@ -301,7 +371,7 @@ const updateRewardStatus = async (req, res) => {
       })
     }
 
-    const reward = await Reward.findById(id)
+    const reward = await Reward.findById(id).populate('user', 'fullName email')
     if (!reward) {
       return res.status(404).json({
         success: false,
@@ -318,8 +388,27 @@ const updateRewardStatus = async (req, res) => {
     if (status === 'approved') {
       updateData.approvedAt = new Date()
 
+      // Add points to user's balance
+      const user = await User.findById(reward.user._id)
+      if (user) {
+        user.rewardPoints = (user.rewardPoints || 0) + reward.amount
+        await user.save()
+      }
+
+      // Send approval email
+      const { sendRewardApprovedEmail } = require('../utils/emailService')
+      const firstName = reward.user.fullName?.split(' ')[0] || 'User'
+      sendRewardApprovedEmail(
+        reward.user.email,
+        firstName,
+        reward.taskTitle,
+        reward.amount
+      ).catch(err => {
+        console.error('Failed to send reward approval email:', err)
+      })
+
       // Check if user completed all tasks for $15 bonus
-      const userId = reward.user
+      const userId = reward.user._id
       const isEligibleForBonus = await Reward.checkBonusEligibility(userId)
 
       if (isEligibleForBonus) {
@@ -344,17 +433,35 @@ const updateRewardStatus = async (req, res) => {
             approvedAt: new Date(),
           })
           await bonus.save()
+          
+          // Add bonus points to user
+          if (user) {
+            user.rewardPoints = (user.rewardPoints || 0) + 15
+            await user.save()
+          }
         }
       }
     } else {
       updateData.rejectedAt = new Date()
+      
+      // Send rejection email
+      const { sendRewardRejectedEmail } = require('../utils/emailService')
+      const firstName = reward.user.fullName?.split(' ')[0] || 'User'
+      sendRewardRejectedEmail(
+        reward.user.email,
+        firstName,
+        reward.taskTitle,
+        adminNotes || ''
+      ).catch(err => {
+        console.error('Failed to send reward rejection email:', err)
+      })
     }
 
     const updatedReward = await Reward.findByIdAndUpdate(id, updateData, {
       new: true,
     })
-      .populate('user', 'name email')
-      .populate('approvedBy', 'name email')
+      .populate('user', 'fullName email')
+      .populate('approvedBy', 'fullName email')
 
     res.json({
       success: true,
@@ -434,6 +541,7 @@ const getAllRewardTasks = async (req, res) => {
     const tasks = await RewardTask.find()
       .sort({ order: 1, createdAt: -1 })
       .populate('createdBy', 'fullName email')
+      .populate('assignedUsers', 'fullName email')
 
     res.json({
       success: true,
@@ -451,8 +559,18 @@ const getAllRewardTasks = async (req, res) => {
 // Admin: Create new reward task
 const createRewardTask = async (req, res) => {
   try {
-    const { taskId, title, description, reward, isVisible, order } = req.body
+    const { taskId, title, description, reward, isVisible, order, visibilityType, assignedUsers } = req.body
     const adminId = req.user?.id
+
+    console.log('📥 Creating task with data:', {
+      taskId,
+      title,
+      reward,
+      isVisible,
+      visibilityType,
+      assignedUsersCount: assignedUsers?.length || 0,
+      assignedUsers: assignedUsers
+    });
 
     if (!taskId || !title || reward === undefined) {
       return res.status(400).json({
@@ -477,14 +595,15 @@ const createRewardTask = async (req, res) => {
       reward,
       isVisible: isVisible !== undefined ? isVisible : true,
       order: order || 0,
+      visibilityType: visibilityType || 'all',
+      assignedUsers: assignedUsers || [],
       createdBy: adminId,
     })
 
     await newTask.save()
-    const populatedTask = await RewardTask.findById(newTask._id).populate(
-      'createdBy',
-      'fullName email',
-    )
+    const populatedTask = await RewardTask.findById(newTask._id)
+      .populate('createdBy', 'fullName email')
+      .populate('assignedUsers', 'fullName email')
 
     res.status(201).json({
       success: true,
@@ -504,7 +623,17 @@ const createRewardTask = async (req, res) => {
 const updateRewardTask = async (req, res) => {
   try {
     const { id } = req.params
-    const { title, description, reward, isVisible, order } = req.body
+    const { title, description, reward, isVisible, order, visibilityType, assignedUsers } = req.body
+
+    console.log('📝 Updating task with data:', {
+      id,
+      title,
+      reward,
+      isVisible,
+      visibilityType,
+      assignedUsersCount: assignedUsers?.length || 0,
+      assignedUsers: assignedUsers
+    });
 
     const task = await RewardTask.findById(id)
     if (!task) {
@@ -519,12 +648,13 @@ const updateRewardTask = async (req, res) => {
     if (reward !== undefined) task.reward = reward
     if (isVisible !== undefined) task.isVisible = isVisible
     if (order !== undefined) task.order = order
+    if (visibilityType !== undefined) task.visibilityType = visibilityType
+    if (assignedUsers !== undefined) task.assignedUsers = assignedUsers
 
     await task.save()
-    const updatedTask = await RewardTask.findById(task._id).populate(
-      'createdBy',
-      'fullName email',
-    )
+    const updatedTask = await RewardTask.findById(task._id)
+      .populate('createdBy', 'fullName email')
+      .populate('assignedUsers', 'fullName email')
 
     res.json({
       success: true,

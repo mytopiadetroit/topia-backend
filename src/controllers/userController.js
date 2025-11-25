@@ -41,6 +41,12 @@ const getAllUsers = async (req, res) => {
       message: 'Users fetched successfully',
       data: users,
       count: users.length,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: totalUsers,
+        itemsPerPage: limit,
+      },
       meta: {
         page,
         limit,

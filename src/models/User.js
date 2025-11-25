@@ -52,6 +52,11 @@ const userRegistrationSchema = new mongoose.Schema({
     enum: ['pending', 'suspend', 'verified', 'incomplete'],
     default: 'pending',
   },
+  rewardPoints: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
   otp: {
     type: String,
     select: false, // Don't include in query results by default

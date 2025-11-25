@@ -35,6 +35,15 @@ const rewardTaskSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    visibilityType: {
+      type: String,
+      enum: ['all', 'specific'],
+      default: 'all',
+    },
+    assignedUsers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
   },
   {
     timestamps: true,

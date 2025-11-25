@@ -9,6 +9,7 @@ const subscriberRoutes = require('./routes/subscriberRoutes')
 const contactRoutes = require('./routes/contactRoutes')
 const contentRoutes = require('./routes/contentRoutes')
 const rewardRoutes = require('./routes/rewardRoutes')
+const pointsRoutes = require('./routes/pointsRoutes')
 const adminRoutes = require('./routes/adminRoutes')
 const wishlistRoutes = require('./routes/wishlistRoutes')
 const shopSettingsRoutes = require('./routes/shopSettingsRoutes')
@@ -36,6 +37,7 @@ module.exports = (app) => {
   // Protected routes - authentication required
   app.use('/api/users', userRoutes)
   app.use('/api/rewards', rewardRoutes)
+  app.use('/api/points', pointsRoutes)
   app.use('/api/admin', adminRoutes)
   app.use('/api/wishlist', wishlistRoutes)
   app.use('/api', orderRoutes) // Mounted on /api because routes already have /orders and /admin/orders paths
