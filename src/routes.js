@@ -16,6 +16,8 @@ const shopSettingsRoutes = require('./routes/shopSettingsRoutes')
 const galleryRoutes = require('./routes/galleryRoutes')
 const homepageSettingsRoutes = require('./routes/homepageSettingsRoutes')
 const settingRoute = require('./routes/settingRoute')
+const homepageImageRoutes = require('./routes/homepageImageRoutes')
+const visitorRoutes = require('./routes/visitorRoutes')
 const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
@@ -32,6 +34,8 @@ module.exports = (app) => {
   app.use('/api/content', contentRoutes)
   app.use('/api/gallery', galleryRoutes)
   app.use('/api/setting', settingRoute)
+  app.use('/api/homepage-images', homepageImageRoutes)
+  app.use('/api/visitors', visitorRoutes)
   app.get('/api/pagesetting', getAllsettingImages)
   
   // Protected routes - authentication required

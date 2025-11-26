@@ -385,17 +385,22 @@ const updateRewardStatus = async (req, res) => {
       approvedBy: adminId,
     }
 
+    // Check if status is actually changing
+    const isStatusChanging = reward.status !== status;
+
     if (status === 'approved') {
       updateData.approvedAt = new Date()
 
-      // Add points to user's balance
-      const user = await User.findById(reward.user._id)
-      if (user) {
-        user.rewardPoints = (user.rewardPoints || 0) + reward.amount
-        await user.save()
+      // Add points to user's balance (only if status is changing to avoid duplicate points)
+      if (isStatusChanging) {
+        const user = await User.findById(reward.user._id)
+        if (user) {
+          user.rewardPoints = (user.rewardPoints || 0) + reward.amount
+          await user.save()
+        }
       }
 
-      // Send approval email
+      // Send approval email (always send when approving, even if already approved)
       const { sendRewardApprovedEmail } = require('../utils/emailService')
       const firstName = reward.user.fullName?.split(' ')[0] || 'User'
       sendRewardApprovedEmail(
