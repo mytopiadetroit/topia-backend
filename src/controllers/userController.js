@@ -77,10 +77,21 @@ const getUserById = async (req, res) => {
       })
     }
 
+    // Get visit count from Visitor model
+    const Visitor = require('../models/Visitor');
+    const visitorData = await Visitor.findOne({ userId: id });
+    const visitCount = visitorData ? visitorData.visitCount : 0;
+    const lastVisit = visitorData ? visitorData.lastVisit : null;
+
+    // Add visit info to user data
+    const userData = user.toObject();
+    userData.visitCount = visitCount;
+    userData.lastVisit = lastVisit;
+
     res.status(200).json({
       success: true,
       message: 'User fetched successfully',
-      data: user,
+      data: userData,
     })
   } catch (error) {
     console.error('Error fetching user:', error)

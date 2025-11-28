@@ -48,7 +48,7 @@ const checkInVisitor = async (req, res) => {
 
         // Populate user details if member
         if (visitor.isMember && visitor.userId) {
-            await visitor.populate('userId', 'fullName email');
+            await visitor.populate('userId', 'fullName email phone birthday governmentId rewardPoints status createdAt role');
         }
 
         res.status(200).json({
@@ -100,7 +100,7 @@ const getAllVisitors = async (req, res) => {
         }
 
         const visitors = await Visitor.find(query)
-            .populate('userId', 'fullName email')
+            .populate('userId', 'fullName email phone birthday governmentId rewardPoints status createdAt role')
             .sort({ lastVisit: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit);
@@ -147,7 +147,7 @@ const getVisitorDetails = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const visitor = await Visitor.findById(id).populate('userId', 'fullName email phone');
+        const visitor = await Visitor.findById(id).populate('userId', 'fullName email phone birthday governmentId rewardPoints status createdAt role');
 
         if (!visitor) {
             return res.status(404).json({
