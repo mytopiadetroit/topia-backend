@@ -18,6 +18,7 @@ const homepageSettingsRoutes = require('./routes/homepageSettingsRoutes')
 const settingRoute = require('./routes/settingRoute')
 const homepageImageRoutes = require('./routes/homepageImageRoutes')
 const visitorRoutes = require('./routes/visitorRoutes')
+const userNoteRoutes = require('./routes/userNoteRoutes')
 const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
@@ -44,6 +45,7 @@ module.exports = (app) => {
   app.use('/api/points', pointsRoutes)
   app.use('/api/admin', adminRoutes)
   app.use('/api/wishlist', wishlistRoutes)
+  app.use('/api/user-notes', userNoteRoutes)
   app.use('/api', orderRoutes) // Mounted on /api because routes already have /orders and /admin/orders paths
 
 }

@@ -607,3 +607,18 @@ module.exports.getLoginsByDate = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
+
+// Admin: Get count of pending verifications
+module.exports.getPendingVerificationsCount = async (req, res) => {
+  try {
+    const count = await User.countDocuments({ status: 'pending' })
+    
+    res.status(200).json({
+      success: true,
+      count
+    })
+  } catch (error) {
+    console.error('Error fetching pending verifications count:', error)
+    res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+}

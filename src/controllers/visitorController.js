@@ -80,7 +80,9 @@ const getAllVisitors = async (req, res) => {
 
         // Search by phone
         if (search) {
-            query.phone = { $regex: search, $options: 'i' };
+            // Escape special regex characters in phone number
+            const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            query.phone = { $regex: escapedSearch, $options: 'i' };
         }
 
         // Filter by member status
@@ -101,6 +103,7 @@ const getAllVisitors = async (req, res) => {
 
         const visitors = await Visitor.find(query)
             .populate('userId', 'fullName email phone birthday governmentId rewardPoints status createdAt role')
+            .populate('visits.adminId', 'fullName email')
             .sort({ lastVisit: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit);
@@ -199,9 +202,111 @@ const deleteVisitor = async (req, res) => {
     }
 };
 
+// Admin: Manual check-in for a user
+const adminCheckInUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const adminId = req.user.id; // From auth middleware
+
+        // Verify user exists
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+
+        // Find or create visitor record
+        let visitor = await Visitor.findOne({ userId });
+
+        if (visitor) {
+            // Update existing visitor
+            visitor.visitCount += 1;
+            visitor.lastVisit = new Date();
+            visitor.visits.push({ 
+                timestamp: new Date(),
+                checkedInBy: 'admin',
+                adminId: adminId
+            });
+            await visitor.save();
+        } else {
+            // Create new visitor record
+            visitor = new Visitor({
+                phone: user.phone,
+                isMember: true,
+                userId: user._id,
+                visitCount: 1,
+                lastVisit: new Date(),
+                visits: [{ 
+                    timestamp: new Date(),
+                    checkedInBy: 'admin',
+                    adminId: adminId
+                }]
+            });
+            await visitor.save();
+        }
+
+        // Populate admin details
+        await visitor.populate('visits.adminId', 'fullName email');
+
+        res.status(200).json({
+            success: true,
+            message: `Check-in successful for ${user.fullName}`,
+            data: {
+                visitor,
+                user: {
+                    fullName: user.fullName,
+                    phone: user.phone,
+                    email: user.email
+                }
+            },
+        });
+    } catch (error) {
+        console.error('Error in admin check-in:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error checking in user',
+            error: error.message,
+        });
+    }
+};
+
+// Admin: Get visitor by user ID
+const getVisitorByUserId = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const visitor = await Visitor.findOne({ userId })
+            .populate('userId', 'fullName email phone birthday governmentId rewardPoints status createdAt role')
+            .populate('visits.adminId', 'fullName email');
+
+        if (!visitor) {
+            return res.status(404).json({
+                success: false,
+                message: 'Visitor record not found',
+            });
+        }
+
+        res.json({
+            success: true,
+            data: visitor,
+        });
+    } catch (error) {
+        console.error('Error fetching visitor by user ID:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching visitor',
+            error: error.message,
+        });
+    }
+};
+
 module.exports = {
     checkInVisitor,
     getAllVisitors,
     getVisitorDetails,
     deleteVisitor,
+    adminCheckInUser,
+    getVisitorByUserId,
 };

@@ -5,6 +5,8 @@ const {
     getAllVisitors,
     getVisitorDetails,
     deleteVisitor,
+    adminCheckInUser,
+    getVisitorByUserId,
 } = require('../controllers/visitorController');
 const {
     authenticate,
@@ -34,6 +36,22 @@ router.delete(
     authenticate,
     authorizationRole('admin'),
     deleteVisitor
+);
+
+// Admin manual check-in for a user
+router.post(
+    '/admin/checkin/:userId',
+    authenticate,
+    authorizationRole('admin'),
+    adminCheckInUser
+);
+
+// Admin get visitor by user ID
+router.get(
+    '/admin/user/:userId',
+    authenticate,
+    authorizationRole('admin'),
+    getVisitorByUserId
 );
 
 module.exports = router;

@@ -28,6 +28,16 @@ const visitorSchema = new mongoose.Schema(
             timestamp: {
                 type: Date,
                 default: Date.now,
+            },
+            checkedInBy: {
+                type: String,
+                enum: ['self', 'admin'],
+                default: 'self'
+            },
+            adminId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+                default: null
             }
         }]
     },

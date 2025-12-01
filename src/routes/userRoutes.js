@@ -12,6 +12,7 @@ const {
   getTodayLogins,
   getRegistrationsByDate,
   getLoginsByDate,
+  getPendingVerificationsCount,
 } = require('../controllers/userController')
 const authMiddleware = require('../middlewares/authMiddleware')
 
@@ -70,6 +71,13 @@ router.get(
   authMiddleware.authenticate,
   authMiddleware.authorizationRole('admin'),
   getLoginsByDate,
+)
+// Admin: get pending verifications count
+router.get(
+  '/admin/pending-verifications-count',
+  authMiddleware.authenticate,
+  authMiddleware.authorizationRole('admin'),
+  getPendingVerificationsCount,
 )
 
 module.exports = router
