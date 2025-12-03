@@ -63,6 +63,10 @@ const OrderSchema = new mongoose.Schema(
       unique: true,
     },
     notes: String,
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
     createdAt: {
       type: Date,
       default: Date.now,

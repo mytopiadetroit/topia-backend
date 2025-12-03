@@ -29,10 +29,25 @@ router.put(
   authMiddleware.authorizationRole('admin'),
   orderController.updateOrderStatus,
 )
-router.delete(
-  '/admin/orders/:id',
+// Archive order (soft delete)
+router.put(
+  '/admin/orders/:id/archive',
   authMiddleware.authorizationRole('admin'),
-  orderController.deleteOrder,
+  orderController.archiveOrder,
+)
+
+// Unarchive order
+router.put(
+  '/admin/orders/:id/unarchive',
+  authMiddleware.authorizationRole('admin'),
+  orderController.unarchiveOrder,
+)
+
+// Get archived orders
+router.get(
+  '/admin/orders/archived/all',
+  authMiddleware.authorizationRole('admin'),
+  orderController.getArchivedOrders,
 )
 
 module.exports = router

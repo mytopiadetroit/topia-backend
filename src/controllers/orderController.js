@@ -146,7 +146,7 @@ exports.getAllOrders = async (req, res) => {
         ? req.query.status
         : undefined
 
-    const criteria = {}
+    const criteria = { $or: [{ isArchived: false }, { isArchived: { $exists: false } }] } // Show non-archived and old data without field
     if (status) criteria.status = status
     if (req.query.userid) criteria.user = req.query.userid
     console.log(criteria)
@@ -283,10 +283,10 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
-// Delete order (admin only)
-exports.deleteOrder = async (req, res) => {
+// Archive order (admin only - soft delete)
+exports.archiveOrder = async (req, res) => {
   try {
-    const order = await Order.findByIdAndDelete(req.params.id)
+    const order = await Order.findById(req.params.id)
 
     if (!order) {
       return res.status(404).json({
@@ -295,9 +295,95 @@ exports.deleteOrder = async (req, res) => {
       })
     }
 
+    order.isArchived = true
+    await order.save()
+
     res.status(200).json({
       success: true,
-      message: 'Order deleted successfully',
+      message: 'Order archived successfully',
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    })
+  }
+}
+
+// Unarchive order (admin only)
+exports.unarchiveOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      })
+    }
+
+    order.isArchived = false
+    await order.save()
+
+    res.status(200).json({
+      success: true,
+      message: 'Order unarchived successfully',
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    })
+  }
+}
+
+// Get archived orders (admin only)
+exports.getArchivedOrders = async (req, res) => {
+  try {
+    const { page = 1, limit = 30, search = '', date = '', status = '' } = req.query
+
+    const query = { isArchived: true }
+
+    // Search by order number or customer name/phone
+    if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      query.$or = [
+        { orderNumber: { $regex: escapedSearch, $options: 'i' } },
+      ]
+    }
+
+    // Filter by status
+    if (status && status !== 'all') {
+      query.status = status
+    }
+
+    // Filter by date (Michigan timezone)
+    if (date) {
+      const moment = require('moment-timezone')
+      const michiganTz = 'America/Detroit'
+      const selectedDate = moment.tz(date, michiganTz)
+      const startOfDay = selectedDate.clone().startOf('day').toDate()
+      const endOfDay = selectedDate.clone().endOf('day').toDate()
+      query.createdAt = { $gte: startOfDay, $lte: endOfDay }
+    }
+
+    const orders = await Order.find(query)
+      .populate('user', 'fullName email phone')
+      .populate('items.product', 'name price images')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+
+    const count = await Order.countDocuments(query)
+
+    res.status(200).json({
+      success: true,
+      data: orders,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        pages: Math.ceil(count / limit),
+      },
     })
   } catch (error) {
     res.status(500).json({

@@ -1,7 +1,8 @@
 const Visitor = require('../models/Visitor');
 const User = require('../models/User');
+const moment = require('moment-timezone');
 
-// Check-in visitor
+
 const checkInVisitor = async (req, res) => {
     try {
         const { phone } = req.body;
@@ -16,37 +17,48 @@ const checkInVisitor = async (req, res) => {
         // Check if user exists in database
         const user = await User.findOne({ phone });
         
-        // Check if visitor already exists
+       
+        if (!user) {
+            return res.status(403).json({
+                success: false,
+                message: 'User not registered. Please register first.',
+                isRegistered: false,
+            });
+        }
+        
+        
         let visitor = await Visitor.findOne({ phone });
 
+        const checkInTime = new Date();
+        
         if (visitor) {
-            // Update existing visitor
+         
             visitor.visitCount += 1;
-            visitor.lastVisit = new Date();
-            visitor.visits.push({ timestamp: new Date() });
+            visitor.lastVisit = checkInTime;
+            visitor.visits.push({ timestamp: checkInTime });
             
-            // Update member status if user found
-            if (user && !visitor.isMember) {
+          
+            if (!visitor.isMember) {
                 visitor.isMember = true;
                 visitor.userId = user._id;
             }
             
             await visitor.save();
         } else {
-            // Create new visitor
+            // Create new visitor (only for registered users)
             visitor = new Visitor({
                 phone,
-                isMember: !!user,
-                userId: user ? user._id : null,
+                isMember: true,
+                userId: user._id,
                 visitCount: 1,
-                lastVisit: new Date(),
-                visits: [{ timestamp: new Date() }]
+                lastVisit: checkInTime,
+                visits: [{ timestamp: checkInTime }]
             });
             
             await visitor.save();
         }
 
-        // Populate user details if member
+    
         if (visitor.isMember && visitor.userId) {
             await visitor.populate('userId', 'fullName email phone birthday governmentId rewardPoints status createdAt role');
         }
@@ -71,28 +83,28 @@ const checkInVisitor = async (req, res) => {
     }
 };
 
-// Admin: Get all visitors
+
 const getAllVisitors = async (req, res) => {
     try {
         const { page = 1, limit = 50, search = '', memberFilter = 'all', date = '' } = req.query;
 
-        const query = {};
+        const query = { $or: [{ isArchived: false }, { isArchived: { $exists: false } }] }; 
 
-        // Search by phone
+      
         if (search) {
-            // Escape special regex characters in phone number
+          
             const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             query.phone = { $regex: escapedSearch, $options: 'i' };
         }
 
-        // Filter by member status
+     
         if (memberFilter === 'members') {
             query.isMember = true;
         } else if (memberFilter === 'non-members') {
             query.isMember = false;
         }
 
-        // Filter by date
+      
         if (date) {
             const startDate = new Date(date);
             startDate.setHours(0, 0, 0, 0);
@@ -110,14 +122,21 @@ const getAllVisitors = async (req, res) => {
 
         const count = await Visitor.countDocuments(query);
 
-        // Get statistics
-        const totalVisitors = await Visitor.countDocuments();
-        const totalMembers = await Visitor.countDocuments({ isMember: true });
-        const totalNonMembers = await Visitor.countDocuments({ isMember: false });
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+        
+        const notArchivedQuery = { $or: [{ isArchived: false }, { isArchived: { $exists: false } }] };
+        const totalVisitors = await Visitor.countDocuments(notArchivedQuery);
+        const totalMembers = await Visitor.countDocuments({ isMember: true, ...notArchivedQuery });
+        const totalNonMembers = await Visitor.countDocuments({ isMember: false, ...notArchivedQuery });
+        
+     
+        const michiganTz = 'America/Detroit';
+        const nowInMichigan = moment.tz(michiganTz);
+        const todayStartInMichigan = nowInMichigan.clone().startOf('day');
+        const todayStartUTC = todayStartInMichigan.toDate();
+        
         const todayVisitors = await Visitor.countDocuments({ 
-            lastVisit: { $gte: todayStart } 
+            lastVisit: { $gte: todayStartUTC },
+            ...notArchivedQuery
         });
 
         res.json({
@@ -145,7 +164,7 @@ const getAllVisitors = async (req, res) => {
     }
 };
 
-// Admin: Get visitor details
+
 const getVisitorDetails = async (req, res) => {
     try {
         const { id } = req.params;
@@ -173,8 +192,8 @@ const getVisitorDetails = async (req, res) => {
     }
 };
 
-// Admin: Delete visitor
-const deleteVisitor = async (req, res) => {
+// Admin: Archive visitor (soft delete)
+const archiveVisitor = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -186,17 +205,98 @@ const deleteVisitor = async (req, res) => {
             });
         }
 
-        await Visitor.findByIdAndDelete(id);
+        visitor.isArchived = true;
+        await visitor.save();
 
         res.json({
             success: true,
-            message: 'Visitor deleted successfully',
+            message: 'Visitor archived successfully',
         });
     } catch (error) {
-        console.error('Error deleting visitor:', error);
+        console.error('Error archiving visitor:', error);
         res.status(500).json({
             success: false,
-            message: 'Error deleting visitor',
+            message: 'Error archiving visitor',
+            error: error.message,
+        });
+    }
+};
+
+// Admin: Unarchive visitor
+const unarchiveVisitor = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const visitor = await Visitor.findById(id);
+        if (!visitor) {
+            return res.status(404).json({
+                success: false,
+                message: 'Visitor not found',
+            });
+        }
+
+        visitor.isArchived = false;
+        await visitor.save();
+
+        res.json({
+            success: true,
+            message: 'Visitor unarchived successfully',
+        });
+    } catch (error) {
+        console.error('Error unarchiving visitor:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error unarchiving visitor',
+            error: error.message,
+        });
+    }
+};
+
+// Admin: Get archived visitors
+const getArchivedVisitors = async (req, res) => {
+    try {
+        const { page = 1, limit = 30, search = '', date = '' } = req.query;
+
+        const query = { isArchived: true };
+
+        // Search by phone
+        if (search) {
+            const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            query.phone = { $regex: escapedSearch, $options: 'i' };
+        }
+
+        // Filter by date (Michigan timezone)
+        if (date) {
+            const michiganTz = 'America/Detroit';
+            const selectedDate = moment.tz(date, michiganTz);
+            const startOfDay = selectedDate.clone().startOf('day').toDate();
+            const endOfDay = selectedDate.clone().endOf('day').toDate();
+            query.lastVisit = { $gte: startOfDay, $lte: endOfDay };
+        }
+
+        const visitors = await Visitor.find(query)
+            .populate('userId', 'fullName email phone birthday governmentId rewardPoints status createdAt role')
+            .populate('visits.adminId', 'fullName email')
+            .sort({ lastVisit: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        const count = await Visitor.countDocuments(query);
+
+        res.json({
+            success: true,
+            data: visitors,
+            pagination: {
+                total: count,
+                page: parseInt(page),
+                pages: Math.ceil(count / limit),
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching archived visitors:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching archived visitors',
             error: error.message,
         });
     }
@@ -306,7 +406,9 @@ module.exports = {
     checkInVisitor,
     getAllVisitors,
     getVisitorDetails,
-    deleteVisitor,
+    archiveVisitor,
+    unarchiveVisitor,
+    getArchivedVisitors,
     adminCheckInUser,
     getVisitorByUserId,
 };

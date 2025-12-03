@@ -4,7 +4,9 @@ const {
     checkInVisitor,
     getAllVisitors,
     getVisitorDetails,
-    deleteVisitor,
+    archiveVisitor,
+    unarchiveVisitor,
+    getArchivedVisitors,
     adminCheckInUser,
     getVisitorByUserId,
 } = require('../controllers/visitorController');
@@ -31,11 +33,28 @@ router.get(
     getVisitorDetails
 );
 
-router.delete(
-    '/admin/:id',
+// Archive visitor (soft delete)
+router.put(
+    '/admin/:id/archive',
     authenticate,
     authorizationRole('admin'),
-    deleteVisitor
+    archiveVisitor
+);
+
+// Unarchive visitor
+router.put(
+    '/admin/:id/unarchive',
+    authenticate,
+    authorizationRole('admin'),
+    unarchiveVisitor
+);
+
+// Get archived visitors
+router.get(
+    '/admin/archived/all',
+    authenticate,
+    authorizationRole('admin'),
+    getArchivedVisitors
 );
 
 // Admin manual check-in for a user
