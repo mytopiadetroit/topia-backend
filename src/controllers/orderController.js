@@ -37,6 +37,40 @@ exports.createOrder = async (req, res) => {
         })
       }
       const requested = Number(item.quantity || 1)
+      
+      // Check if item has a selected variant
+      if (item.selectedVariant && item.selectedVariant._id) {
+        const variant = product.variants.find(v => v._id.toString() === item.selectedVariant._id.toString())
+        if (variant) {
+          if (variant.stock < requested) {
+            return res.status(400).json({
+              success: false,
+              message: `Insufficient stock for ${product.name} (${variant.size?.value}${variant.size?.unit})`,
+            })
+          }
+          variant.stock = variant.stock - requested
+          await product.save()
+          continue
+        }
+      }
+      
+      // Check if item has a selected flavor
+      if (item.selectedFlavor && item.selectedFlavor._id) {
+        const flavor = product.flavors.find(f => f._id.toString() === item.selectedFlavor._id.toString())
+        if (flavor) {
+          if (flavor.stock < requested) {
+            return res.status(400).json({
+              success: false,
+              message: `Insufficient stock for ${product.name} (${flavor.name})`,
+            })
+          }
+          flavor.stock = flavor.stock - requested
+          await product.save()
+          continue
+        }
+      }
+      
+      // If no variant or flavor, deduct from main product stock
       if (product.stock != null) {
         if (product.stock < requested) {
           return res.status(400).json({
@@ -49,6 +83,17 @@ exports.createOrder = async (req, res) => {
         await product.save()
       }
     }
+
+    // Log incoming items to check if variant/flavor data is present
+    console.log('=== CREATE ORDER - INCOMING ITEMS ===');
+    items.forEach((item, index) => {
+      console.log(`Item ${index + 1}:`, {
+        name: item.name,
+        selectedVariant: item.selectedVariant,
+        selectedFlavor: item.selectedFlavor,
+      });
+    });
+    console.log('====================================');
 
     // Create order (pickup flow)
     const order = new Order({
@@ -74,6 +119,14 @@ exports.createOrder = async (req, res) => {
 
     // Populate product details for response
     await order.populate('items.product', 'name price images')
+
+    console.log('=== ORDER SAVED ===');
+    console.log('Saved Order Items:', order.items.map(item => ({
+      name: item.name,
+      selectedVariant: item.selectedVariant,
+      selectedFlavor: item.selectedFlavor,
+    })));
+    console.log('===================');
 
     res.status(201).json({
       success: true,
@@ -158,7 +211,7 @@ exports.getAllOrders = async (req, res) => {
 
     const orders = await Order.find(criteria)
       .populate('user', 'fullName email phone')
-      .populate('items.product', 'name price images')
+      .populate('items.product', 'name price images variants flavors hasVariants')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -204,8 +257,33 @@ exports.updateOrderStatus = async (req, res) => {
     if (shouldRevert && wasPending) {
       for (const item of prev.items || []) {
         const product = await Product.findById(item.product)
-        if (product && product.stock != null) {
-          product.stock = product.stock + (item.quantity || 1)
+        if (!product) continue
+        
+        const quantity = item.quantity || 1
+        
+        // Restore variant stock if applicable
+        if (item.selectedVariant && item.selectedVariant._id) {
+          const variant = product.variants.find(v => v._id.toString() === item.selectedVariant._id.toString())
+          if (variant) {
+            variant.stock = (variant.stock || 0) + quantity
+            await product.save()
+            continue
+          }
+        }
+        
+        // Restore flavor stock if applicable
+        if (item.selectedFlavor && item.selectedFlavor._id) {
+          const flavor = product.flavors.find(f => f._id.toString() === item.selectedFlavor._id.toString())
+          if (flavor) {
+            flavor.stock = (flavor.stock || 0) + quantity
+            await product.save()
+            continue
+          }
+        }
+        
+        // Restore main product stock
+        if (product.stock != null) {
+          product.stock = product.stock + quantity
           product.hasStock = product.stock > 0
           await product.save()
         }
@@ -258,11 +336,34 @@ exports.cancelOrder = async (req, res) => {
     // Restore product stock
     for (const item of order.items) {
       const product = await Product.findById(item.product);
-      if (product) {
-        product.stock = (product.stock || 0) + (item.quantity || 1);
-        product.hasStock = product.stock > 0;
-        await product.save();
+      if (!product) continue;
+      
+      const quantity = item.quantity || 1;
+      
+      // Restore variant stock if applicable
+      if (item.selectedVariant && item.selectedVariant._id) {
+        const variant = product.variants.find(v => v._id.toString() === item.selectedVariant._id.toString());
+        if (variant) {
+          variant.stock = (variant.stock || 0) + quantity;
+          await product.save();
+          continue;
+        }
       }
+      
+      // Restore flavor stock if applicable
+      if (item.selectedFlavor && item.selectedFlavor._id) {
+        const flavor = product.flavors.find(f => f._id.toString() === item.selectedFlavor._id.toString());
+        if (flavor) {
+          flavor.stock = (flavor.stock || 0) + quantity;
+          await product.save();
+          continue;
+        }
+      }
+      
+      // Restore main product stock
+      product.stock = (product.stock || 0) + quantity;
+      product.hasStock = product.stock > 0;
+      await product.save();
     }
 
     // Update order status to cancelled
