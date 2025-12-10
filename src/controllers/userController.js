@@ -431,20 +431,38 @@ module.exports.getLoginStatsRange = async (req, res) => {
 // Admin: Get today's registrations with user details
 module.exports.getTodayRegistrations = async (req, res) => {
   try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
+    const limit = Math.max(parseInt(req.query.limit, 10) || 200, 1)
+    const skip = (page - 1) * limit
+
     const now = new Date()
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
 
-    const users = await User.find({
-      createdAt: { $gte: startOfDay, $lt: endOfDay }
-    })
-      .select('fullName email phone createdAt status')
-      .sort({ createdAt: -1 })
+    const query = { createdAt: { $gte: startOfDay, $lt: endOfDay } }
+
+    const [users, totalCount] = await Promise.all([
+      User.find(query)
+        .select('fullName email phone createdAt status')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(query)
+    ])
+
+    const totalPages = Math.ceil(totalCount / limit) || 1
 
     res.status(200).json({
       success: true,
       count: users.length,
+      total: totalCount,
       data: users,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: totalCount,
+        itemsPerPage: limit,
+      }
     })
   } catch (error) {
     console.error('Error fetching today registrations:', error)
@@ -455,6 +473,9 @@ module.exports.getTodayRegistrations = async (req, res) => {
 // Admin: Get today's logins with user details
 module.exports.getTodayLogins = async (req, res) => {
   try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
+    const limit = Math.max(parseInt(req.query.limit, 10) || 200, 1)
+
     const now = new Date()
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
@@ -486,7 +507,7 @@ module.exports.getTodayLogins = async (req, res) => {
       }
     })
 
-    const uniqueUsers = Array.from(userLoginMap.values()).map(item => ({
+    const allUniqueUsers = Array.from(userLoginMap.values()).map(item => ({
       fullName: item.user.fullName,
       email: item.user.email,
       phone: item.user.phone,
@@ -495,11 +516,24 @@ module.exports.getTodayLogins = async (req, res) => {
       firstLogin: item.firstLogin
     }))
 
+    // Apply pagination
+    const totalCount = allUniqueUsers.length
+    const totalPages = Math.ceil(totalCount / limit) || 1
+    const skip = (page - 1) * limit
+    const paginatedUsers = allUniqueUsers.slice(skip, skip + limit)
+
     res.status(200).json({
       success: true,
-      count: uniqueUsers.length,
+      count: paginatedUsers.length,
+      total: totalCount,
       totalLogins: loginEvents.length,
-      data: uniqueUsers,
+      data: paginatedUsers,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: totalCount,
+        itemsPerPage: limit,
+      }
     })
   } catch (error) {
     console.error('Error fetching today logins:', error)
@@ -511,6 +545,9 @@ module.exports.getTodayLogins = async (req, res) => {
 module.exports.getRegistrationsByDate = async (req, res) => {
   try {
     const { startDate, endDate } = req.query
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
+    const limit = Math.max(parseInt(req.query.limit, 10) || 200, 1)
+    const skip = (page - 1) * limit
     
     if (!startDate || !endDate) {
       return res.status(400).json({ 
@@ -524,17 +561,31 @@ module.exports.getRegistrationsByDate = async (req, res) => {
     const end = new Date(endDate)
     end.setHours(23, 59, 59, 999)
 
-    const users = await User.find({
-      createdAt: { $gte: start, $lte: end }
-    })
-      .select('fullName email phone createdAt status')
-      .sort({ createdAt: -1 })
+    const query = { createdAt: { $gte: start, $lte: end } }
+
+    const [users, totalCount] = await Promise.all([
+      User.find(query)
+        .select('fullName email phone createdAt status')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(query)
+    ])
+
+    const totalPages = Math.ceil(totalCount / limit) || 1
 
     res.status(200).json({
       success: true,
       count: users.length,
+      total: totalCount,
       data: users,
-      dateRange: { start, end }
+      dateRange: { start, end },
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: totalCount,
+        itemsPerPage: limit,
+      }
     })
   } catch (error) {
     console.error('Error fetching registrations by date:', error)
@@ -546,6 +597,8 @@ module.exports.getRegistrationsByDate = async (req, res) => {
 module.exports.getLoginsByDate = async (req, res) => {
   try {
     const { startDate, endDate } = req.query
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
+    const limit = Math.max(parseInt(req.query.limit, 10) || 200, 1)
     
     if (!startDate || !endDate) {
       return res.status(400).json({ 
@@ -586,7 +639,7 @@ module.exports.getLoginsByDate = async (req, res) => {
       }
     })
 
-    const uniqueUsers = Array.from(userLoginMap.values()).map(item => ({
+    const allUniqueUsers = Array.from(userLoginMap.values()).map(item => ({
       fullName: item.user.fullName,
       email: item.user.email,
       phone: item.user.phone,
@@ -595,12 +648,25 @@ module.exports.getLoginsByDate = async (req, res) => {
       firstLogin: item.firstLogin
     }))
 
+    // Apply pagination
+    const totalCount = allUniqueUsers.length
+    const totalPages = Math.ceil(totalCount / limit) || 1
+    const skip = (page - 1) * limit
+    const paginatedUsers = allUniqueUsers.slice(skip, skip + limit)
+
     res.status(200).json({
       success: true,
-      count: uniqueUsers.length,
+      count: paginatedUsers.length,
+      total: totalCount,
       totalLogins: loginEvents.length,
-      data: uniqueUsers,
-      dateRange: { start, end }
+      data: paginatedUsers,
+      dateRange: { start, end },
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: totalCount,
+        itemsPerPage: limit,
+      }
     })
   } catch (error) {
     console.error('Error fetching logins by date:', error)

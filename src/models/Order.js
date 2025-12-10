@@ -28,6 +28,22 @@ const OrderSchema = new mongoose.Schema(
           min: 1,
         },
         image: String,
+        selectedVariant: {
+          _id: mongoose.Schema.Types.ObjectId,
+          size: {
+            value: Number,
+            unit: String,
+          },
+          price: Number,
+          stock: Number,
+          sku: String,
+        },
+        selectedFlavor: {
+          _id: mongoose.Schema.Types.ObjectId,
+          name: String,
+          price: Number,
+          stock: Number,
+        },
       },
     ],
     totalAmount: {
@@ -44,7 +60,7 @@ const OrderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'unfulfilled', 'fulfilled', 'incomplete', 'cancelled'],
+      enum: ['pending', 'unfulfilled', 'fulfilled', 'completed', 'incomplete', 'cancelled'],
       default: 'pending',
     },
     shippingAddress: {

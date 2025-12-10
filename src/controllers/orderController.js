@@ -59,6 +59,8 @@ exports.createOrder = async (req, res) => {
         price: item.price,
         quantity: item.quantity,
         image: item.images && item.images.length > 0 ? item.images[0] : null,
+        selectedVariant: item.selectedVariant || null,
+        selectedFlavor: item.selectedFlavor || null,
       })),
       subtotal,
       tax,
