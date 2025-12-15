@@ -140,7 +140,10 @@ const updateUser = async (req, res) => {
 const updateUserStatus = async (req, res) => {
   try {
     const { id } = req.params
-    const { status, reason = '' } = req.body || {}
+    const { status, reason = '', suspensionReason = '' } = req.body || {}
+    
+    console.log('🔍 Update Status Request:', { id, status, reason, suspensionReason })
+    
     const allowed = ['pending', 'suspend', 'verified', 'incomplete']
     
     if (!allowed.includes(status)) {
@@ -153,12 +156,35 @@ const updateUserStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' })
     }
 
+    // Prepare update data
+    const updateData = { status }
+    
+    // If suspending, save the suspension reason
+    if (status === 'suspend' && suspensionReason) {
+      updateData.suspensionReason = suspensionReason
+      console.log('✅ Adding suspensionReason to updateData:', suspensionReason)
+    }
+    
+    // If changing from suspend to another status, clear suspension reason
+    if (oldUser.status === 'suspend' && status !== 'suspend') {
+      updateData.suspensionReason = ''
+      console.log('🧹 Clearing suspensionReason')
+    }
+
+    console.log('📝 Update Data:', updateData)
+
     // Update user status
     const user = await User.findByIdAndUpdate(
       id,
-      { status },
+      updateData,
       { new: true, runValidators: true },
     ).select('-__v')
+    
+    console.log('✅ User updated:', { 
+      id: user._id, 
+      status: user.status, 
+      suspensionReason: user.suspensionReason 
+    })
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' })
@@ -171,7 +197,8 @@ const updateUserStatus = async (req, res) => {
     if (oldUser.status !== status) {
       try {
         if (status === 'suspend') {
-          await sendAccountSuspendedEmail(user.email, user.fullName || 'User', reason)
+          const reasonToSend = suspensionReason || reason || 'Violation of terms of service'
+          await sendAccountSuspendedEmail(user.email, user.fullName || 'User', reasonToSend)
           console.log(`Suspension email sent to ${user.email}`)
         } else if (status === 'verified' && oldUser.status !== 'verified') {
           await sendAccountVerifiedEmail(user.email, user.fullName || 'User')
@@ -435,9 +462,17 @@ module.exports.getTodayRegistrations = async (req, res) => {
     const limit = Math.max(parseInt(req.query.limit, 10) || 200, 1)
     const skip = (page - 1) * limit
 
-    const now = new Date()
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    // Use Michigan timezone (America/Detroit)
+    const moment = require('moment-timezone')
+    const michiganNow = moment().tz('America/Detroit')
+    const startOfDay = michiganNow.clone().startOf('day').toDate()
+    const endOfDay = michiganNow.clone().endOf('day').toDate()
+
+    console.log('🕐 Michigan Time - Today Registrations:', {
+      michiganNow: michiganNow.format(),
+      startOfDay: startOfDay,
+      endOfDay: endOfDay
+    })
 
     const query = { createdAt: { $gte: startOfDay, $lt: endOfDay } }
 
@@ -476,9 +511,17 @@ module.exports.getTodayLogins = async (req, res) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
     const limit = Math.max(parseInt(req.query.limit, 10) || 200, 1)
 
-    const now = new Date()
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    // Use Michigan timezone (America/Detroit)
+    const moment = require('moment-timezone')
+    const michiganNow = moment().tz('America/Detroit')
+    const startOfDay = michiganNow.clone().startOf('day').toDate()
+    const endOfDay = michiganNow.clone().endOf('day').toDate()
+
+    console.log('🕐 Michigan Time - Today Logins:', {
+      michiganNow: michiganNow.format(),
+      startOfDay: startOfDay,
+      endOfDay: endOfDay
+    })
 
     const loginEvents = await LoginEvent.find({
       createdAt: { $gte: startOfDay, $lt: endOfDay }
@@ -556,10 +599,14 @@ module.exports.getRegistrationsByDate = async (req, res) => {
       })
     }
 
-    const start = new Date(startDate)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(endDate)
-    end.setHours(23, 59, 59, 999)
+    // Parse dates in Michigan timezone
+    const moment = require('moment-timezone')
+    const start = moment.tz(startDate, 'America/Detroit').startOf('day').toDate()
+    const end = moment.tz(endDate, 'America/Detroit').endOf('day').toDate()
+
+    console.log('🕐 Michigan Time - Date Range Registrations:', {
+      startDate, endDate, start, end
+    })
 
     const query = { createdAt: { $gte: start, $lte: end } }
 
@@ -607,10 +654,14 @@ module.exports.getLoginsByDate = async (req, res) => {
       })
     }
 
-    const start = new Date(startDate)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(endDate)
-    end.setHours(23, 59, 59, 999)
+    // Parse dates in Michigan timezone
+    const moment = require('moment-timezone')
+    const start = moment.tz(startDate, 'America/Detroit').startOf('day').toDate()
+    const end = moment.tz(endDate, 'America/Detroit').endOf('day').toDate()
+
+    console.log('🕐 Michigan Time - Date Range Logins:', {
+      startDate, endDate, start, end
+    })
 
     const loginEvents = await LoginEvent.find({
       createdAt: { $gte: start, $lte: end }

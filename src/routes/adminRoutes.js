@@ -20,4 +20,12 @@ router.put(
   adminController.updateAdminProfile,
 )
 
+// Export customers data
+router.get(
+  '/export-customers',
+  authenticate,
+  authorizationRole('admin'),
+  adminController.exportCustomersData
+)
+
 module.exports = router

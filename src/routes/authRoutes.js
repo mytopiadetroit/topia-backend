@@ -7,6 +7,7 @@ const {
   updateProfile,
   verifyOtp,
   getProfile,
+  getSuspensionStatus,
   AdminverifyOtp,
   Adminlogin,
 } = require('../controllers/authController')
@@ -35,6 +36,13 @@ router.get(
   '/profile',
   require('../middlewares/authMiddleware').authenticate,
   getProfile,
+)
+
+// Get suspension status - lightweight endpoint
+router.get(
+  '/suspension-status',
+  require('../middlewares/authMiddleware').authenticate,
+  getSuspensionStatus,
 )
 
 router.get('/pagesetting', getAllsettingImages)

@@ -261,6 +261,8 @@ module.exports = {
           fullName: user.fullName,
           phone: user.phone,
           role: user.role,
+          status: user.status,
+          suspensionReason: user.suspensionReason || '',
         },
       })
     }
@@ -341,6 +343,8 @@ module.exports = {
         fullName: user.fullName,
         phone: user.phone,
         role: user.role,
+        status: user.status,
+        suspensionReason: user.suspensionReason || '',
       },
     })
   } catch (error) {
@@ -534,8 +538,14 @@ module.exports = {
         return res.status(404).json({ message: 'User not found' })
       }
 
+      console.log('📋 getProfile - User Data:', {
+        id: user._id,
+        status: user.status,
+        suspensionReason: user.suspensionReason
+      })
+
       // Return user profile data with status
-      res.json({
+      const responseData = {
         success: true,
         user: {
           id: user._id,
@@ -547,11 +557,53 @@ module.exports = {
           governmentId: user.governmentId,
           createdAt: user.createdAt,
           status: user.status || 'pending', // Include status with a default of 'pending'
+          suspensionReason: user.suspensionReason || '', // Include suspension reason
         },
-      })
+      }
+      
+      console.log('✅ getProfile - Response:', responseData)
+      res.json(responseData)
     } catch (error) {
       console.error(error)
       res.status(500).json({ message: 'Server error' })
+    }
+  },
+
+  // Get suspension status - lightweight endpoint for suspend page
+  getSuspensionStatus: async (req, res) => {
+    try {
+      const userId = req.user.id
+
+      // Find user by ID - only select status and suspensionReason
+      const user = await UserRegistration.findById(userId).select('status suspensionReason')
+
+      if (!user) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'User not found' 
+        })
+      }
+
+      console.log('🔍 getSuspensionStatus - User:', {
+        id: userId,
+        status: user.status,
+        suspensionReason: user.suspensionReason
+      })
+
+      // Return only status and suspension reason
+      res.json({
+        success: true,
+        data: {
+          status: user.status || 'pending',
+          suspensionReason: user.suspensionReason || ''
+        }
+      })
+    } catch (error) {
+      console.error('❌ Error in getSuspensionStatus:', error)
+      res.status(500).json({ 
+        success: false,
+        message: 'Server error' 
+      })
     }
   },
 

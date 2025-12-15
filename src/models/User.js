@@ -52,6 +52,10 @@ const userRegistrationSchema = new mongoose.Schema({
     enum: ['pending', 'suspend', 'verified', 'incomplete'],
     default: 'pending',
   },
+  suspensionReason: {
+    type: String,
+    default: '',
+  },
   rewardPoints: {
     type: Number,
     default: 0,
