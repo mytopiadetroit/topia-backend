@@ -19,12 +19,14 @@ const settingRoute = require('./routes/settingRoute')
 const homepageImageRoutes = require('./routes/homepageImageRoutes')
 const visitorRoutes = require('./routes/visitorRoutes')
 const userNoteRoutes = require('./routes/userNoteRoutes')
+const taxRoutes = require('./routes/taxRoutes')
 const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
   // Public routes - no authentication required
   app.use('/api/shop-settings', shopSettingsRoutes)
   app.use('/api/homepage-settings', homepageSettingsRoutes)
+  app.use('/api/tax', taxRoutes)
   app.use('/api/auth', authRoutes)
   app.use('/api/products', productRoutes)
   app.use('/api/categories', categoryRoutes)
