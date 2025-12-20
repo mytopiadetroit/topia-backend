@@ -20,6 +20,8 @@ const homepageImageRoutes = require('./routes/homepageImageRoutes')
 const visitorRoutes = require('./routes/visitorRoutes')
 const userNoteRoutes = require('./routes/userNoteRoutes')
 const taxRoutes = require('./routes/taxRoutes')
+const analyticsRoutes = require('./routes/analyticsRoutes')
+const dealRoutes = require('./routes/dealRoutes')
 const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
@@ -39,6 +41,7 @@ module.exports = (app) => {
   app.use('/api/setting', settingRoute)
   app.use('/api/homepage-images', homepageImageRoutes)
   app.use('/api/visitors', visitorRoutes)
+  app.use('/api/deals', dealRoutes)
   app.get('/api/pagesetting', getAllsettingImages)
   
   // Protected routes - authentication required
@@ -48,6 +51,7 @@ module.exports = (app) => {
   app.use('/api/admin', adminRoutes)
   app.use('/api/wishlist', wishlistRoutes)
   app.use('/api/user-notes', userNoteRoutes)
+  app.use('/api/analytics', analyticsRoutes)
   app.use('/api', orderRoutes) // Mounted on /api because routes already have /orders and /admin/orders paths
 
 }
