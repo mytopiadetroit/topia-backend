@@ -131,33 +131,56 @@ const getContentById = async (req, res) => {
 
 const createContent = async (req, res) => {
   try {
+    console.log('=== CREATE CONTENT DEBUG ===');
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    console.log('Files:', req.files);
+    console.log('User:', req.user);
+    console.log('Auth Header:', req.headers.authorization);
+    
+    // Check if user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required. Please login as admin.',
+      });
+    }
+    
     const contentData = {
       ...req.body,
-      author: req.user?.id || null, // handle case if no auth
+      author: req.user.id,
     }
 
     // Handle file uploads (S3 ka .location prefer hoga, warna local fallback)
-    if (req.files.featuredImage) {
+    if (req.files && req.files.featuredImage) {
       contentData.featuredImage =
         req.files.featuredImage[0].location ||
         `/uploads/content/${req.files.featuredImage[0].filename}`
     }
 
-    if (req.files.featuredVideo) {
+    if (req.files && req.files.featuredVideo) {
       contentData.videoUrl =
         req.files.featuredVideo[0].location ||
         `/uploads/content/${req.files.featuredVideo[0].filename}`
     }
 
-    if (req.files.videoThumbnail) {
+    if (req.files && req.files.videoThumbnail) {
       contentData.videoThumbnail =
         req.files.videoThumbnail[0].location ||
         `/uploads/content/${req.files.videoThumbnail[0].filename}`
     }
 
+    // Parse SEO if it's a string
+    if (typeof contentData.seo === 'string') {
+      try {
+        contentData.seo = JSON.parse(contentData.seo);
+      } catch (e) {
+        console.error('Error parsing SEO:', e);
+      }
+    }
+
     // Parse tags if they're sent as string
     if (typeof contentData.tags === 'string') {
-      contentData.tags = contentData.tags.split(',').map((tag) => tag.trim())
+      contentData.tags = contentData.tags.split(',').map((tag) => tag.trim()).filter(t => t.length > 0);
     }
 
     // Parse SEO keywords if they're sent as string
@@ -165,13 +188,18 @@ const createContent = async (req, res) => {
       contentData.seo.metaKeywords = contentData.seo.metaKeywords
         .split(',')
         .map((keyword) => keyword.trim())
+        .filter(k => k.length > 0);
     }
 
     // Calculate read time (rough estimate: 200 words per minute)
     if (contentData.content) {
-      const wordCount = contentData.content.split(/\s+/).length
-      contentData.readTime = Math.ceil(wordCount / 200)
+      // Strip HTML tags for word count
+      const plainText = contentData.content.replace(/<[^>]*>/g, ' ');
+      const wordCount = plainText.split(/\s+/).filter(w => w.length > 0).length;
+      contentData.readTime = Math.ceil(wordCount / 200);
     }
+
+    console.log('Final contentData:', JSON.stringify(contentData, null, 2));
 
     // Save in DB
     const content = new Content(contentData)
@@ -189,11 +217,16 @@ const createContent = async (req, res) => {
       data: populatedContent,
     })
   } catch (error) {
-    console.error('Error creating content:', error)
+    console.error('Error creating content:', error);
+    console.error('Error stack:', error.stack);
     res.status(400).json({
       success: false,
       message: 'Error creating content',
       error: error.message,
+      details: error.errors ? Object.keys(error.errors).map(key => ({
+        field: key,
+        message: error.errors[key].message
+      })) : undefined
     })
   }
 }

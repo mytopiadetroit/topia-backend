@@ -26,13 +26,14 @@ router.post('/public/:id/like', authenticate, likeContent)
 router.post('/public/:id/unlike', authenticate, unlikeContent)
 router.get('/categories', getContentCategories)
 
-// Admin routes (without authentication)
-router.get('/admin', getAllContent) // No auth
-router.get('/admin/stats', getContentStats) // No auth
-router.get('/admin/:id', getContentById) // No auth
+// Admin routes (with authentication)
+router.get('/admin', authenticate, getAllContent)
+router.get('/admin/stats', authenticate, getContentStats)
+router.get('/admin/:id', authenticate, getContentById)
 
 router.post(
   '/admin',
+  authenticate,
   upload.fields([
     { name: 'featuredImage', maxCount: 1 },
     { name: 'featuredVideo', maxCount: 1 },
@@ -43,6 +44,7 @@ router.post(
 
 router.put(
   '/admin/:id',
+  authenticate,
   upload.fields([
     { name: 'featuredImage', maxCount: 1 },
     { name: 'featuredVideo', maxCount: 1 },
@@ -51,6 +53,6 @@ router.put(
   updateContent,
 )
 
-router.delete('/admin/:id', deleteContent)
+router.delete('/admin/:id', authenticate, deleteContent)
 
 module.exports = router
