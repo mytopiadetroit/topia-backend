@@ -15,11 +15,20 @@ const DealSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please provide a banner image'],
     },
+    discountType: {
+      type: String,
+      enum: ['percentage', 'fixed'],
+      default: 'percentage',
+      required: true,
+    },
     discountPercentage: {
       type: Number,
-      required: [true, 'Please provide discount percentage'],
       min: [0, 'Discount cannot be negative'],
       max: [100, 'Discount cannot exceed 100%'],
+    },
+    discountAmount: {
+      type: Number,
+      min: [0, 'Discount amount cannot be negative'],
     },
     startDate: {
       type: Date,

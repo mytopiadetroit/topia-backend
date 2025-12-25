@@ -120,7 +120,9 @@ const createDeal = async (req, res) => {
     const {
       title,
       description,
+      discountType,
       discountPercentage,
+      discountAmount,
       startDate,
       endDate,
       products,
@@ -142,6 +144,21 @@ const createDeal = async (req, res) => {
       });
     }
 
+    // Validate discount based on type
+    const dealDiscountType = discountType || 'percentage';
+    if (dealDiscountType === 'percentage' && !discountPercentage) {
+      return res.status(400).json({
+        success: false,
+        message: 'Discount percentage is required for percentage type deals',
+      });
+    }
+    if (dealDiscountType === 'fixed' && !discountAmount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Discount amount is required for fixed amount deals',
+      });
+    }
+
     // Validate dates
     if (new Date(startDate) >= new Date(endDate)) {
       return res.status(400).json({
@@ -153,18 +170,27 @@ const createDeal = async (req, res) => {
     // Parse products if it's a string
     const parsedProducts = typeof products === 'string' ? JSON.parse(products) : products;
 
-    const deal = await Deal.create({
+    const dealData = {
       title,
       description,
       bannerImage,
-      discountPercentage,
+      discountType: dealDiscountType,
       startDate,
       endDate,
       products: parsedProducts,
       isActive: isActive === 'true' || isActive === true,
       showBanner: showBanner === 'true' || showBanner === true,
       bannerInterval: parseInt(bannerInterval) || 30,
-    });
+    };
+
+    // Add discount value based on type
+    if (dealDiscountType === 'percentage') {
+      dealData.discountPercentage = parseFloat(discountPercentage);
+    } else {
+      dealData.discountAmount = parseFloat(discountAmount);
+    }
+
+    const deal = await Deal.create(dealData);
 
     const populatedDeal = await Deal.findById(deal._id).populate('products');
 
