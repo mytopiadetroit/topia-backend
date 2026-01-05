@@ -129,6 +129,34 @@ const getContentById = async (req, res) => {
   }
 }
 
+// Get single content by slug (SEO-friendly)
+const getContentBySlug = async (req, res) => {
+  try {
+    const content = await Content.findOne({ slug: req.params.slug }).populate(
+      'author',
+      'name email',
+    )
+
+    if (!content) {
+      return res.status(404).json({
+        success: false,
+        message: 'Content not found',
+      })
+    }
+
+    res.json({
+      success: true,
+      data: content,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching content',
+      error: error.message,
+    })
+  }
+}
+
 const createContent = async (req, res) => {
   try {
     console.log('=== CREATE CONTENT DEBUG ===');
@@ -527,6 +555,7 @@ module.exports = {
   getAllContent,
   getPublishedContent,
   getContentById,
+  getContentBySlug,
   createContent,
   updateContent,
   deleteContent,

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const RewardTask = require('../models/RewardTask');
 require('dotenv').config();
 
-// Default tasks from the original system
+
 const DEFAULT_TASKS = [
   { taskId: 'join-groove', title: 'Join Groove Group', reward: 1, order: 1 },
   { taskId: 'follow-ig', title: 'Follow Us On IG', reward: 1, order: 2 },
@@ -18,7 +18,7 @@ const DEFAULT_TASKS = [
 
 async function migrateRewardTasks() {
   try {
-    // Connect to MongoDB
+   
     await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/shroomtopia', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -26,7 +26,7 @@ async function migrateRewardTasks() {
     
     console.log('Connected to MongoDB');
 
-    // Get first admin user ID (you may need to adjust this)
+   
     const User = require('../models/User');
     const admin = await User.findOne({ role: 'admin' });
     
@@ -37,7 +37,7 @@ async function migrateRewardTasks() {
 
     console.log(`Using admin user: ${admin.fullName || admin.email}`);
 
-    // Check if tasks already exist
+   
     const existingTasks = await RewardTask.countDocuments();
     
     if (existingTasks > 0) {
@@ -68,7 +68,7 @@ async function migrateRewardTasks() {
 
 async function insertTasks(adminId) {
   try {
-    // Insert default tasks
+   
     for (const task of DEFAULT_TASKS) {
       const existingTask = await RewardTask.findOne({ taskId: task.taskId });
       
@@ -85,8 +85,7 @@ async function insertTasks(adminId) {
       }
     }
 
-    console.log('\n✅ Migration completed successfully!');
-    console.log(`Total tasks in database: ${await RewardTask.countDocuments()}`);
+   
     
     process.exit(0);
   } catch (error) {

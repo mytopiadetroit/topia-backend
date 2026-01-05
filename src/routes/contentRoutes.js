@@ -4,6 +4,7 @@ const {
   getAllContent,
   getPublishedContent,
   getContentById,
+  getContentBySlug,
   createContent,
   updateContent,
   deleteContent,
@@ -20,6 +21,7 @@ const { authenticate } = require('../middlewares/authMiddleware')
 
 // Public routes (for website)
 router.get('/public', getPublishedContent)
+router.get('/public/slug/:slug', getContentBySlug) // New SEO-friendly route
 router.get('/public/:id', getContentById)
 router.post('/public/:id/view', addViewPublic)
 router.post('/public/:id/like', authenticate, likeContent)

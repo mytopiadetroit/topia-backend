@@ -140,7 +140,7 @@ module.exports = {
           },
         })
       }
-      // For email-based login (admin role)
+    
       else if (email && password) {
         const user = await UserRegistration.findOne({ email })
 
@@ -556,8 +556,8 @@ module.exports = {
           howDidYouHear: user.howDidYouHear,
           governmentId: user.governmentId,
           createdAt: user.createdAt,
-          status: user.status || 'pending', // Include status with a default of 'pending'
-          suspensionReason: user.suspensionReason || '', // Include suspension reason
+          status: user.status || 'pending', 
+          suspensionReason: user.suspensionReason || '', 
         },
       }
       
@@ -798,7 +798,7 @@ module.exports = {
               console.error(
                 'Error: S3 is configured but req.file.location is undefined',
               )
-              // Fallback to asset root + key if location is missing
+            
               if (req.file.key) {
                 governmentId = `${process.env.ASSET_ROOT}/${req.file.key}`
                 console.log('Constructed S3 URL from key:', governmentId)

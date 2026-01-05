@@ -44,6 +44,25 @@ const DealSchema = new mongoose.Schema(
         ref: 'Product',
       },
     ],
+  
+    dealItems: [
+      {
+        product: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Product',
+          required: true,
+        },
+       
+        variantId: {
+          type: mongoose.Schema.Types.ObjectId,
+        },
+       
+        flavorId: {
+          type: mongoose.Schema.Types.ObjectId,
+        },
+      
+      },
+    ],
     isActive: {
       type: Boolean,
       default: true,

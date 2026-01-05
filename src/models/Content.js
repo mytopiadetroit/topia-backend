@@ -7,6 +7,12 @@ const contentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    slug: {
+      type: String,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
     description: {
       type: String,
       required: true,
@@ -77,7 +83,7 @@ const contentSchema = new mongoose.Schema(
     ],
     viewedBy: [
       {
-        type: String, // anonymous visitorId stored client-side
+        type: String, 
       },
     ],
     seo: {
@@ -101,23 +107,47 @@ const contentSchema = new mongoose.Schema(
   },
 )
 
-// Index for better search performance
+
 contentSchema.index({ title: 'text', description: 'text', content: 'text' })
 contentSchema.index({ type: 1, status: 1 })
 contentSchema.index({ category: 1 })
 contentSchema.index({ publishedAt: -1 })
+contentSchema.index({ slug: 1 })
 
-// Virtual for URL slug
-contentSchema.virtual('slug').get(function () {
-  return this.title
+
+function generateSlug(title) {
+  return title
     .toLowerCase()
-    .replace(/[^a-zA-Z0-9]/g, '-')
-    .replace(/-+/g, '-')
-    .trim('-')
-})
+    .trim()
+    .replace(/[^\w\s-]/g, '') 
+    .replace(/\s+/g, '-') 
+    .replace(/-+/g, '-') 
+    .substring(0, 100); 
+}
 
-// Pre-save middleware to set publishedAt when status changes to published
-contentSchema.pre('save', function (next) {
+contentSchema.pre('save', async function (next) {
+
+  if (!this.slug || this.isModified('title')) {
+    let baseSlug = generateSlug(this.title);
+    let slug = baseSlug;
+    let counter = 1;
+    
+    while (true) {
+      const existing = await mongoose.model('Content').findOne({ 
+        slug, 
+        _id: { $ne: this._id } 
+      });
+      
+      if (!existing) break;
+      
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    
+    this.slug = slug;
+  }
+  
+ 
   if (
     this.isModified('status') &&
     this.status === 'published' &&
@@ -125,6 +155,7 @@ contentSchema.pre('save', function (next) {
   ) {
     this.publishedAt = new Date()
   }
+  
   next()
 })
 

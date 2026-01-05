@@ -11,6 +11,13 @@ const getActiveDeals = async (req, res) => {
       endDate: { $gte: now },
     })
       .populate({
+        path: 'dealItems.product',
+        populate: {
+          path: 'reviewTags',
+          model: 'ReviewTag'
+        }
+      })
+      .populate({
         path: 'products',
         populate: {
           path: 'reviewTags',
@@ -36,7 +43,9 @@ const getActiveDeals = async (req, res) => {
 // Get deal by ID
 const getDealById = async (req, res) => {
   try {
-    const deal = await Deal.findById(req.params.id).populate('products');
+    const deal = await Deal.findById(req.params.id)
+      .populate('products')
+      .populate('dealItems.product');
 
     if (!deal) {
       return res.status(404).json({
@@ -70,6 +79,7 @@ const getBannerDeal = async (req, res) => {
       endDate: { $gte: now },
     })
       .populate('products')
+      .populate('dealItems.product')
       .sort({ createdAt: -1 });
 
     if (!deal) {
@@ -98,6 +108,7 @@ const getAllDeals = async (req, res) => {
   try {
     const deals = await Deal.find()
       .populate('products')
+      .populate('dealItems.product')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -126,6 +137,7 @@ const createDeal = async (req, res) => {
       startDate,
       endDate,
       products,
+      dealItems,
       isActive,
       showBanner,
       bannerInterval,
@@ -168,7 +180,8 @@ const createDeal = async (req, res) => {
     }
 
     // Parse products if it's a string
-    const parsedProducts = typeof products === 'string' ? JSON.parse(products) : products;
+    const parsedProducts = typeof products === 'string' ? JSON.parse(products) : products || [];
+    const parsedDealItems = typeof dealItems === 'string' ? JSON.parse(dealItems) : dealItems || [];
 
     const dealData = {
       title,
@@ -178,6 +191,7 @@ const createDeal = async (req, res) => {
       startDate,
       endDate,
       products: parsedProducts,
+      dealItems: parsedDealItems,
       isActive: isActive === 'true' || isActive === true,
       showBanner: showBanner === 'true' || showBanner === true,
       bannerInterval: parseInt(bannerInterval) || 30,
@@ -192,7 +206,9 @@ const createDeal = async (req, res) => {
 
     const deal = await Deal.create(dealData);
 
-    const populatedDeal = await Deal.findById(deal._id).populate('products');
+    const populatedDeal = await Deal.findById(deal._id)
+      .populate('products')
+      .populate('dealItems.product');
 
     res.status(201).json({
       success: true,
@@ -235,6 +251,11 @@ const updateDeal = async (req, res) => {
       updateData.products = JSON.parse(updateData.products);
     }
 
+    // Parse dealItems if it's a string
+    if (updateData.dealItems && typeof updateData.dealItems === 'string') {
+      updateData.dealItems = JSON.parse(updateData.dealItems);
+    }
+
     // Parse boolean values
     if (updateData.isActive !== undefined) {
       updateData.isActive = updateData.isActive === 'true' || updateData.isActive === true;
@@ -252,7 +273,9 @@ const updateDeal = async (req, res) => {
     const deal = await Deal.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
-    }).populate('products');
+    })
+      .populate('products')
+      .populate('dealItems.product');
 
     if (!deal) {
       return res.status(404).json({
