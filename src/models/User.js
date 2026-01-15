@@ -63,11 +63,11 @@ const userRegistrationSchema = new mongoose.Schema({
   },
   otp: {
     type: String,
-    select: false, // Don't include in query results by default
+    select: false, 
   },
   otpExpires: {
     type: Date,
-    select: false, // Don't include in query results by default
+    select: false, 
   },
   createdAt: {
     type: Date,

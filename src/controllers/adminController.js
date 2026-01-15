@@ -106,7 +106,7 @@ const updateAdminProfile = async (req, res) => {
   }
 }
 
-// Export customers data with orders to Professional Excel
+
 const exportCustomersData = async (req, res) => {
   try {
     const users = await User.find({}).lean()
@@ -117,7 +117,7 @@ const exportCustomersData = async (req, res) => {
     workbook.created = new Date()
     workbook.modified = new Date()
 
-    // ==================== SHEET 1: CUSTOMER SUMMARY ====================
+    
     const customerSheet = workbook.addWorksheet('Customer Summary', {
       views: [{ state: 'frozen', ySplit: 1 }],
       properties: { tabColor: { argb: 'FF4472C4' } }
@@ -204,7 +204,7 @@ const exportCustomersData = async (req, res) => {
       row.getCell('totalOrders').alignment = { horizontal: 'center', vertical: 'middle' }
       row.getCell('rewardPoints').alignment = { horizontal: 'center', vertical: 'middle' }
       
-      // Add hyperlink for Government ID if exists
+     
       const govIdCell = row.getCell('governmentId')
       if (user.governmentId && user.governmentId !== 'Not uploaded') {
         govIdCell.value = {

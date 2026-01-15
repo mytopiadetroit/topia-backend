@@ -387,12 +387,11 @@ const getCustomerGrowth = async (req, res) => {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
     
-    // Daily registrations
+    // Daily registrations - ALL users (including admins)
     const dailyRegistrations = await User.aggregate([
       {
         $match: {
-          createdAt: { $gte: startDate },
-          role: 'user'
+          createdAt: { $gte: startDate }
         }
       },
       {
@@ -413,9 +412,9 @@ const getCustomerGrowth = async (req, res) => {
       }
     ])
     
-    // Total customers
-    const totalCustomers = await User.countDocuments({ role: 'user' })
-    const verifiedCustomers = await User.countDocuments({ role: 'user', status: 'verified' })
+    // Total customers - ALL users (including admins)
+    const totalCustomers = await User.countDocuments({})
+    const verifiedCustomers = await User.countDocuments({ status: 'verified' })
     
     res.json({
       success: true,

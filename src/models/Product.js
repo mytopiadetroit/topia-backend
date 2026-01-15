@@ -109,7 +109,7 @@ const ProductSchema = new mongoose.Schema(
           unit: {
             type: String,
             default: 'grams',
-            enum: ['grams', 'kg', 'ml', 'liters'],
+            enum: ['grams', 'kg', 'ml', 'liters', 'pieces'],
           },
         },
         price: {
