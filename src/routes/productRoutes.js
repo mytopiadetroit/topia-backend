@@ -53,6 +53,9 @@ router
 // Update product order
 router.put('/:productId/order', productController.updateProductOrder)
 
+// Toggle product active/inactive status
+router.patch('/:productId/toggle-status', productController.toggleProductStatus)
+
 // Get related products (products from same category, excluding current product)
 router.get('/:id/related', productController.getRelatedProducts)
 

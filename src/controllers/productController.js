@@ -201,11 +201,17 @@ exports.createProduct = async (req, res) => {
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const { categoryId, limit, page = 1, pageSize = 15 } = req.query;
+    const { categoryId, limit, page = 1, pageSize = 15, includeInactive } = req.query;
     let filter = {};
     
     if (categoryId) {
       filter.category = categoryId;
+    }
+    
+    // For frontend (web), only show active products
+    // For admin, show all products if includeInactive is true
+    if (includeInactive !== 'true') {
+      filter.isActive = true;
     }
     
     // Calculate pagination
@@ -286,16 +292,25 @@ exports.getProduct = async (req, res) => {
 exports.getProductsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params
-    const { page = 1, limit = 10 } = req.query
+    const { page = 1, limit = 10, includeInactive } = req.query
     
     const pageNumber = parseInt(page, 10)
     const limitNumber = parseInt(limit, 10)
     const skip = (pageNumber - 1) * limitNumber
 
-    // Get total count of products in this category
-    const total = await Product.countDocuments({ category: categoryId })
+    // Build filter
+    const filter = { category: categoryId };
+    
+    // For frontend (web), only show active products
+    // For admin, show all products if includeInactive is true
+    if (includeInactive !== 'true') {
+      filter.isActive = true;
+    }
 
-    let query = Product.find({ category: categoryId })
+    // Get total count of products in this category
+    const total = await Product.countDocuments(filter)
+
+    let query = Product.find(filter)
       .populate('category', 'category')
       .populate('reviewTags', 'label isActive')
       .sort({ order: 1 }) // Sort by order field in ascending order
@@ -676,13 +691,45 @@ exports.updateProductOrder = async (req, res) => {
     console.log('Product order updated successfully:', product);
     res.status(200).json({
       success: true,
-      data: updatedProduct,
+      data: product,
     });
   } catch (error) {
     console.error('Error updating product order:', error);
     res.status(500).json({
       success: false,
       message: 'Error updating product order',
+      error: error.message,
+    });
+  }
+};
+
+exports.toggleProductStatus = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    const product = await Product.findById(productId);
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+    
+    // Toggle the isActive status
+    product.isActive = !product.isActive;
+    await product.save();
+    
+    res.status(200).json({
+      success: true,
+      data: product,
+      message: `Product ${product.isActive ? 'activated' : 'deactivated'} successfully`,
+    });
+  } catch (error) {
+    console.error('Error toggling product status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error toggling product status',
       error: error.message,
     });
   }
