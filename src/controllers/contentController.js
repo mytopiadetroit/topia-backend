@@ -114,7 +114,7 @@ const getContentById = async (req, res) => {
       })
     }
 
-    // NOTE: Views are no longer incremented on GET. Use POST /public/:id/view instead.
+   
 
     res.json({
       success: true,

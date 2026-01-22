@@ -549,6 +549,7 @@ module.exports = {
         success: true,
         user: {
           id: user._id,
+          _id: user._id, // Add _id field as well
           email: user.email,
           fullName: user.fullName,
           phone: user.phone,
@@ -557,7 +558,10 @@ module.exports = {
           governmentId: user.governmentId,
           createdAt: user.createdAt,
           status: user.status || 'pending', 
-          suspensionReason: user.suspensionReason || '', 
+          suspensionReason: user.suspensionReason || '',
+          smsOptOut: user.smsOptOut || false, // Add SMS preferences
+          smsOptOutDate: user.smsOptOutDate || null,
+          avatar: user.avatar || '', // Add avatar field
         },
       }
       

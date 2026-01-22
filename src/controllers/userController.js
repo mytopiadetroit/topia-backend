@@ -6,7 +6,7 @@ const getAllUsers = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
     const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1)
-    const { status, search } = req.query
+    const { status, search, infiniteScroll } = req.query
 
     // Build query
     const query = {}
@@ -27,14 +27,25 @@ const getAllUsers = async (req, res) => {
     }
 
     const totalUsers = await User.countDocuments(query)
-    const totalPages = Math.ceil(totalUsers / limit) || 1
-    const skip = (page - 1) * limit
+    
+    // For infinite scroll, we want to load more users but keep DOM rendering limited
+    let actualLimit = limit
+    let skip = (page - 1) * limit
+    
+    // If infinite scroll is enabled, adjust the logic
+    if (infiniteScroll === 'true') {
+      // For infinite scroll, we'll fetch 50 users per request
+      actualLimit = 50
+      skip = (page - 1) * 50
+    }
+    
+    const totalPages = Math.ceil(totalUsers / actualLimit) || 1
 
     const users = await User.find(query)
       .select('-__v')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
+      .limit(actualLimit)
 
     res.status(200).json({
       success: true,
@@ -45,13 +56,15 @@ const getAllUsers = async (req, res) => {
         currentPage: page,
         totalPages,
         totalItems: totalUsers,
-        itemsPerPage: limit,
+        itemsPerPage: actualLimit,
       },
       meta: {
         page,
-        limit,
+        limit: actualLimit,
         total: totalUsers,
         totalPages,
+        hasMore: skip + actualLimit < totalUsers,
+        infiniteScroll: infiniteScroll === 'true'
       },
     })
   } catch (error) {
@@ -256,12 +269,65 @@ const deleteUser = async (req, res) => {
   }
 }
 
+// Update SMS preferences (opt-in/opt-out)
+const updateSMSPreferences = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { smsOptOut } = req.body;
+
+    // Validate input
+    if (typeof smsOptOut !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'smsOptOut must be a boolean value'
+      });
+    }
+
+    // Find and update user
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Update SMS preferences
+    user.smsOptOut = smsOptOut;
+    if (smsOptOut) {
+      user.smsOptOutDate = new Date();
+    } else {
+      user.smsOptOutDate = undefined;
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: smsOptOut ? 'SMS notifications disabled' : 'SMS notifications enabled',
+      data: {
+        smsOptOut: user.smsOptOut,
+        smsOptOutDate: user.smsOptOutDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating SMS preferences:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update SMS preferences',
+      error: error.message
+    });
+  }
+}
+
 module.exports = {
   getAllUsers,
   getUserById,
   updateUser,
   deleteUser,
   updateUserStatus,
+  updateSMSPreferences,
 }
 
 // Admin: get login stats for last 7 days including today

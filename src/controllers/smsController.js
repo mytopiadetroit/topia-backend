@@ -12,31 +12,108 @@ const getTargetUsers = async (targetAudience, customUserIds = []) => {
   
   switch (targetAudience) {
     case 'verified':
-      query = { status: 'verified', phone: { $exists: true, $ne: '' } };
+      query = { 
+        status: 'verified', 
+        phone: { $exists: true, $ne: '' },
+        $or: [
+          { smsOptOut: { $exists: false } }, // Users who haven't set preference (default to opted in)
+          { smsOptOut: false } // Users who explicitly opted in
+        ]
+      };
       break;
     case 'incomplete':
-      query = { status: 'incomplete', phone: { $exists: true, $ne: '' } };
+      query = { 
+        status: 'incomplete', 
+        phone: { $exists: true, $ne: '' },
+        $or: [
+          { smsOptOut: { $exists: false } },
+          { smsOptOut: false }
+        ]
+      };
       break;
     case 'custom':
-      query = { _id: { $in: customUserIds }, phone: { $exists: true, $ne: '' } };
+      query = { 
+        _id: { $in: customUserIds }, 
+        phone: { $exists: true, $ne: '' },
+        $or: [
+          { smsOptOut: { $exists: false } },
+          { smsOptOut: false }
+        ]
+      };
       break;
     case 'birthday':
-     
       const detroitNow = moment.tz(DETROIT_TIMEZONE);
-      const month = String(detroitNow.month() + 1);
-      const day = String(detroitNow.date());
+      const currentMonth = detroitNow.month() + 1; // moment months are 0-indexed
+      const currentDay = detroitNow.date();
+      
+      // Handle multiple birthday data formats
       query = {
         status: 'verified',
-        'birthday.month': month,
-        'birthday.day': day,
-        phone: { $exists: true, $ne: '' }
+        phone: { $exists: true, $ne: '' },
+        $and: [
+          // SMS opt-out filter
+          {
+            $or: [
+              { smsOptOut: { $exists: false } },
+              { smsOptOut: false }
+            ]
+          },
+          // Birthday filter
+          {
+            $or: [
+              // Handle numeric month/day
+              {
+                'birthday.month': currentMonth,
+                'birthday.day': currentDay
+              },
+              // Handle string month/day (with leading zeros)
+              {
+                'birthday.month': String(currentMonth).padStart(2, '0'),
+                'birthday.day': String(currentDay).padStart(2, '0')
+              },
+              // Handle string month/day (without leading zeros)
+              {
+                'birthday.month': String(currentMonth),
+                'birthday.day': String(currentDay)
+              },
+              // Handle month names (January = 1, etc.)
+              {
+                'birthday.month': 'January',
+                'birthday.day': currentDay
+              },
+              {
+                'birthday.month': 'january',
+                'birthday.day': currentDay
+              },
+              // Handle abbreviated month names
+              {
+                'birthday.month': 'Jan',
+                'birthday.day': currentDay
+              },
+              {
+                'birthday.month': 'jan',
+                'birthday.day': currentDay
+              },
+              // Handle string day with numeric month
+              {
+                'birthday.month': currentMonth,
+                'birthday.day': String(currentDay)
+              },
+              {
+                'birthday.month': String(currentMonth),
+                'birthday.day': String(currentDay).padStart(2, '0')
+              }
+            ]
+          }
+        ]
       };
       break;
     default:
       throw new Error('Invalid target audience');
   }
   
-  const users = await User.find(query).select('_id fullName phone email status');
+  const users = await User.find(query).select('_id fullName phone email status birthday smsOptOut');
+  
   return users.map(user => ({
     userId: user._id,
     name: user.fullName,
@@ -264,21 +341,59 @@ exports.previewRecipients = async (req, res) => {
 
 exports.sendBirthdaySMSManually = async (req, res) => {
   try {
-    console.log(' Manual birthday SMS triggered by admin...');
-    
     const detroitNow = moment.tz(DETROIT_TIMEZONE);
-    const month = String(detroitNow.month() + 1);
-    const day = String(detroitNow.date());
+    const currentMonth = detroitNow.month() + 1; // moment months are 0-indexed
+    const currentDay = detroitNow.date();
     
-    console.log(`Checking birthdays for Detroit date: ${detroitNow.format('YYYY-MM-DD')}`);
-    
-   
+    // Find birthday users with flexible month/day format matching
     const birthdayUsers = await User.find({
       status: 'verified',
-      'birthday.month': month,
-      'birthday.day': day,
-      phone: { $exists: true, $ne: '' }
-    }).select('_id fullName phone email');
+      phone: { $exists: true, $ne: '' },
+      $or: [
+        // Handle numeric month/day
+        {
+          'birthday.month': currentMonth,
+          'birthday.day': currentDay
+        },
+        // Handle string month/day (with leading zeros)
+        {
+          'birthday.month': String(currentMonth).padStart(2, '0'),
+          'birthday.day': String(currentDay).padStart(2, '0')
+        },
+        // Handle string month/day (without leading zeros)
+        {
+          'birthday.month': String(currentMonth),
+          'birthday.day': String(currentDay)
+        },
+        // Handle month names (January = 1, etc.)
+        {
+          'birthday.month': 'January',
+          'birthday.day': currentDay
+        },
+        {
+          'birthday.month': 'january',
+          'birthday.day': currentDay
+        },
+        // Handle abbreviated month names
+        {
+          'birthday.month': 'Jan',
+          'birthday.day': currentDay
+        },
+        {
+          'birthday.month': 'jan',
+          'birthday.day': currentDay
+        },
+        // Handle string day with numeric month
+        {
+          'birthday.month': currentMonth,
+          'birthday.day': String(currentDay)
+        },
+        {
+          'birthday.month': String(currentMonth),
+          'birthday.day': String(currentDay).padStart(2, '0')
+        }
+      ]
+    }).select('_id fullName phone email birthday');
     
     if (birthdayUsers.length === 0) {
       return res.status(200).json({
@@ -288,9 +403,7 @@ exports.sendBirthdaySMSManually = async (req, res) => {
       });
     }
     
-    console.log(`Found ${birthdayUsers.length} birthday users`);
-    
-   
+    // Prepare recipients
     const recipients = birthdayUsers.map(user => ({
       userId: user._id,
       name: user.fullName,
@@ -298,8 +411,10 @@ exports.sendBirthdaySMSManually = async (req, res) => {
     }));
     
   
+    // Create SMS notification record with sample personalized message
+    const samplePersonalizedMessage = recipients.length > 0 ? getBirthdayMessage(recipients[0].name) : getBirthdayMessage('[Name]');
     const smsNotification = new SmsNotification({
-      message: getBirthdayMessage('[Name]'),
+      message: samplePersonalizedMessage,
       type: 'birthday',
       targetAudience: 'birthday',
       totalRecipients: recipients.length,
@@ -309,74 +424,68 @@ exports.sendBirthdaySMSManually = async (req, res) => {
     
     await smsNotification.save();
     
-   
-    sendBulkSMS(recipients, '', async (progress) => {
-      console.log(`Birthday SMS Progress: ${progress.current}/${progress.total}`);
-    }).then(async (results) => {
+    // Send personalized birthday SMS to each user
+    const personalizedResults = {
+      total: recipients.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
     
-      const personalizedResults = {
-        total: recipients.length,
-        success: 0,
-        failed: 0,
-        details: []
-      };
+    // Process each recipient individually with personalized message
+    for (const recipient of recipients) {
+      const personalizedMessage = getBirthdayMessage(recipient.name);
       
-      for (const recipient of recipients) {
-        const personalizedMessage = getBirthdayMessage(recipient.name);
+      try {
+        const { sendCustomSMS } = require('../utils/smsService');
+        const result = await sendCustomSMS(recipient.phone, personalizedMessage);
         
-        try {
-          const { sendCustomSMS } = require('../utils/smsService');
-          const result = await sendCustomSMS(recipient.phone, personalizedMessage);
-          
-          if (result.success) {
-            personalizedResults.success++;
-            personalizedResults.details.push({
-              userId: recipient.userId,
-              phone: recipient.phone,
-              name: recipient.name,
-              status: 'sent',
-              messageSid: result.messageSid,
-              sentAt: new Date()
-            });
-          } else {
-            personalizedResults.failed++;
-            personalizedResults.details.push({
-              userId: recipient.userId,
-              phone: recipient.phone,
-              name: recipient.name,
-              status: 'failed',
-              error: result.error,
-              sentAt: new Date()
-            });
-          }
-          
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (error) {
+        if (result.success) {
+          personalizedResults.success++;
+          personalizedResults.details.push({
+            userId: recipient.userId,
+            phone: recipient.phone,
+            name: recipient.name,
+            status: 'sent',
+            messageSid: result.messageSid,
+            sentAt: new Date()
+          });
+        } else {
           personalizedResults.failed++;
           personalizedResults.details.push({
             userId: recipient.userId,
             phone: recipient.phone,
             name: recipient.name,
             status: 'failed',
-            error: error.message,
+            error: result.error,
             sentAt: new Date()
           });
         }
+        
+        // Add delay between messages to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        personalizedResults.failed++;
+        personalizedResults.details.push({
+          userId: recipient.userId,
+          phone: recipient.phone,
+          name: recipient.name,
+          status: 'failed',
+          error: error.message,
+          sentAt: new Date()
+        });
       }
-      
-      smsNotification.recipients = personalizedResults.details;
-      smsNotification.successCount = personalizedResults.success;
-      smsNotification.failedCount = personalizedResults.failed;
-      smsNotification.status = 'completed';
-      smsNotification.completedAt = new Date();
-      await smsNotification.save();
-      
-      console.log(` Manual birthday SMS completed: ${personalizedResults.success} sent, ${personalizedResults.failed} failed`);
-    }).catch(async (error) => {
-      console.error(' Manual birthday SMS failed:', error);
-      smsNotification.status = 'failed';
-      await smsNotification.save();
-    });
+    }
+    
+    // Update notification with results - keep original birthday message
+    smsNotification.recipients = personalizedResults.details;
+    smsNotification.successCount = personalizedResults.success;
+    smsNotification.failedCount = personalizedResults.failed;
+    smsNotification.status = 'completed';
+    smsNotification.completedAt = new Date();
+    await smsNotification.save();
+    
+    console.log(`Birthday SMS completed: ${personalizedResults.success} sent, ${personalizedResults.failed} failed`);
     
     res.status(200).json({
       success: true,
@@ -398,22 +507,56 @@ exports.sendBirthdaySMSManually = async (req, res) => {
 exports.previewBirthdayUsers = async (req, res) => {
   try {
     const detroitNow = moment.tz(DETROIT_TIMEZONE);
-    const month = String(detroitNow.month() + 1);
-    const day = String(detroitNow.date());
-    
-    console.log(`Previewing birthdays for Detroit date: ${detroitNow.format('YYYY-MM-DD')}`);
+    const currentMonth = detroitNow.month() + 1; // moment months are 0-indexed
+    const currentDay = detroitNow.date();
     
     const birthdayUsers = await User.find({
       status: 'verified',
-      'birthday.month': month,
-      'birthday.day': day,
-      phone: { $exists: true, $ne: '' }
+      phone: { $exists: true, $ne: '' },
+      $or: [
+        // Handle numeric month/day
+        {
+          'birthday.month': currentMonth,
+          'birthday.day': currentDay
+        },
+        // Handle string month/day (with leading zeros)
+        {
+          'birthday.month': String(currentMonth).padStart(2, '0'),
+          'birthday.day': String(currentDay).padStart(2, '0')
+        },
+        // Handle string month/day (without leading zeros)
+        {
+          'birthday.month': String(currentMonth),
+          'birthday.day': String(currentDay)
+        },
+      
+        {
+          'birthday.month': 'January',
+          'birthday.day': currentDay
+        },
+        {
+          'birthday.month': 'january',
+          'birthday.day': currentDay
+        },
+       
+        {
+          'birthday.month': 'Jan',
+          'birthday.day': currentDay
+        },
+        {
+          'birthday.month': 'jan',
+          'birthday.day': currentDay
+        }
+      ]
     }).select('fullName phone email birthday');
+    
+    const sampleMessage = birthdayUsers.length > 0 ? getBirthdayMessage(birthdayUsers[0].fullName) : getBirthdayMessage('[Name]');
     
     res.status(200).json({
       success: true,
       count: birthdayUsers.length,
-      users: birthdayUsers
+      users: birthdayUsers,
+      message: sampleMessage
     });
   } catch (error) {
     console.error('Error in previewBirthdayUsers:', error);
@@ -437,7 +580,6 @@ exports.searchUsers = async (req, res) => {
       });
     }
     
-   
     const users = await User.find({
       $or: [
         { fullName: { $regex: search, $options: 'i' } },

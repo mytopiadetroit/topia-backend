@@ -73,6 +73,14 @@ const userRegistrationSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // SMS preferences
+  smsOptOut: {
+    type: Boolean,
+    default: false,
+  },
+  smsOptOutDate: {
+    type: Date,
+  },
 })
 
 const UserRegistration = mongoose.model('User', userRegistrationSchema)

@@ -13,6 +13,7 @@ const {
   getRegistrationsByDate,
   getLoginsByDate,
   getPendingVerificationsCount,
+  updateSMSPreferences,
 } = require('../controllers/userController')
 const authMiddleware = require('../middlewares/authMiddleware')
 
@@ -26,6 +27,8 @@ router.get('/:id', getUserById)
 router.put('/:id', updateUser)
 // Update user status
 router.put('/:id/status', updateUserStatus)
+// Update SMS preferences
+router.put('/:id/sms-preferences', authMiddleware.authenticate, updateSMSPreferences)
 
 // Delete user
 router.delete('/:id', deleteUser)
