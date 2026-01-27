@@ -10,7 +10,7 @@ module.exports = {
     try {
       const { phone, email, password, isAdmin } = req.body
 
-      // For phone-based login (user role)
+     
       if (phone && !email && !password) {
         const user = await UserRegistration.findOne({ phone })
 
@@ -20,14 +20,14 @@ module.exports = {
             .json({ message: 'User not found with this phone number' })
         }
 
-        // Check if user has admin role when isAdmin flag is true
+   
         if (isAdmin && user.role !== 'admin') {
           return res
             .status(403)
             .json({ message: 'Access denied. Admin privileges required.' })
         }
 
-        // Check if user account is suspended
+      
         if (user.status === 'suspend') {
           return res.status(403).json({
             success: false,
@@ -35,18 +35,18 @@ module.exports = {
           })
         }
 
-        // ===== SEND OTP =====
+      
         let otpResult;
         
         if (USE_VERIFY_API) {
-          // METHOD 1: Using Twilio Verify API (Recommended)
+        
           console.log('Using Twilio Verify API');
           otpResult = await sendOTPWithVerify(phone);
           
           if (!otpResult.success) {
             console.error('Failed to send OTP via Verify API:', otpResult.error);
             
-            // Handle unsupported phone number error
+          
             if (otpResult.code === 'INVALID_NUMBER_FORMAT' || 
                 otpResult.error?.includes('not a supported mobile network') ||
                 otpResult.error?.includes('Permission to send an SMS has not been enabled')) {
@@ -56,35 +56,34 @@ module.exports = {
               });
             }
             
-            // For other errors
+       
             return res.status(500).json({ 
               success: false,
               message: 'Failed to send OTP. Please try again.'
             });
           }
 
-          // No need to store OTP in database when using Verify API
-          // Twilio handles OTP storage and expiry
+        
           await UserRegistration.findOneAndUpdate(
             { _id: user._id },
             { 
               $set: { 
-                otp: null, // Clear any old OTP
+                otp: null,
                 otpExpires: null,
-                usingVerifyAPI: true // Flag to know which method was used
+                usingVerifyAPI: true
               } 
             }
           );
 
         } else {
-          // METHOD 2: Traditional SMS method (Fallback)
+        
           console.log('Using Traditional SMS method');
           otpResult = await sendOTP(phone);
           
           if (!otpResult.success) {
             console.error('Failed to send OTP:', otpResult.error);
             
-            // Handle unsupported phone number error
+       
             if (otpResult.code === 'INVALID_NUMBER_FORMAT' || 
                 otpResult.error?.includes('Permission to send an SMS has not been enabled')) {
               return res.status(400).json({ 
@@ -93,16 +92,16 @@ module.exports = {
               });
             }
             
-            // For other errors
+          
             return res.status(500).json({ 
               success: false,
               message: 'Failed to send OTP. Please try again.'
             });
           }
 
-          // Store OTP in database
+       
           const otpString = otpResult.otp.toString().trim();
-          const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+          const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
           
           await UserRegistration.findOneAndUpdate(
             { _id: user._id },
@@ -119,7 +118,7 @@ module.exports = {
           console.log('Stored OTP:', otpString, 'Expires at:', otpExpiry);
         }
 
-        // Generate JWT token
+    
         const token = jwt.sign(
           { id: user._id, phone: user.phone, role: user.role },
           process.env.JWT_SECRET || 'your-secret-key',
@@ -150,26 +149,26 @@ module.exports = {
             .json({ message: 'User not found with this email' })
         }
 
-        // For admin panel, check if user has admin role
+    
         if (user.role !== 'admin') {
           return res
             .status(403)
             .json({ message: 'Access denied. Admin privileges required.' })
         }
 
-        // TODO: Implement proper password hashing and verification
+     
         if (password !== 'admin123') {
           return res.status(401).json({ message: 'Invalid password' })
         }
 
-        // Generate JWT token
+     
         const token = jwt.sign(
           { id: user._id, email: user.email, role: user.role },
           process.env.JWT_SECRET || 'your-secret-key',
           { expiresIn: '365d' },
         )
 
-        // Record login event for admin email login
+       
         try {
           await LoginEvent.create({ user: user._id })
         } catch (e) {
@@ -207,7 +206,7 @@ module.exports = {
         .json({ message: 'OTP and phone number are required' })
     }
     
-    // Find user by phone number
+  
     const user = await UserRegistration.findOne({ phone }).select('+otp +otpExpires +usingVerifyAPI');
     console.log('User found:', user ? 'Yes' : 'No');
     
@@ -704,11 +703,11 @@ module.exports = {
       let governmentIdUpdate = {}
       let avatarUpdate = {}
 
-      // Handle file uploads with multiple fields
+    
       if (req.files) {
         console.log('Files uploaded:', Object.keys(req.files))
 
-        // Handle government ID upload
+     
         if (req.files.govId && req.files.govId.length > 0) {
           const govIdFile = req.files.govId[0]
           console.log(
@@ -719,15 +718,15 @@ module.exports = {
           let governmentId = ''
 
           if (process.env.AWS_ACCESS_KEY) {
-            console.log('AWS S3 is configured. File should be uploaded to S3.')
+          
             if (govIdFile.location) {
               governmentId = govIdFile.location
-              console.log('S3 file location:', govIdFile.location)
+           
             } else {
               console.error(
                 'Error: S3 is configured but govIdFile.location is undefined',
               )
-              // Fallback to asset root + key if location is missing
+          
               if (govIdFile.key) {
                 governmentId = `${process.env.ASSET_ROOT}/${govIdFile.key}`
                 console.log('Constructed S3 URL from key:', governmentId)
@@ -744,7 +743,7 @@ module.exports = {
           governmentIdUpdate = { governmentId }
         }
 
-        // Handle avatar upload
+    
         if (req.files.avatar && req.files.avatar.length > 0) {
           const avatarFile = req.files.avatar[0]
           console.log(

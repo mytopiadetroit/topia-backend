@@ -5,13 +5,13 @@ const Visitor = require('../models/Visitor')
 
 const getReturningCustomers = async (req, res) => {
   try {
-    const { period = '30', limit = 50 } = req.query // days
+    const { period = '30', limit = 50 } = req.query 
     const days = parseInt(period)
     
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
     
-    // Get visitors with multiple visits
+  
     const returningVisitors = await Visitor.aggregate([
       {
         $match: {
@@ -28,12 +28,12 @@ const getReturningCustomers = async (req, res) => {
       }
     ])
     
-    // Get total unique visitors in period
+ 
     const totalVisitors = await Visitor.countDocuments({
       lastVisit: { $gte: startDate }
     })
     
-    // Get daily returning customer trend
+   
     const dailyTrend = await Visitor.aggregate([
       {
         $match: {
@@ -59,7 +59,7 @@ const getReturningCustomers = async (req, res) => {
       }
     ])
     
-    // Get detailed list of returning customers with their visit history
+   
     const returningCustomersList = await Visitor.find({
       visitCount: { $gt: 1 },
       lastVisit: { $gte: startDate }
@@ -69,7 +69,7 @@ const getReturningCustomers = async (req, res) => {
       .limit(parseInt(limit))
       .lean()
     
-    // Format the list with visit details
+ 
     const formattedList = returningCustomersList.map(visitor => ({
       _id: visitor._id,
       phone: visitor.phone,
@@ -79,7 +79,7 @@ const getReturningCustomers = async (req, res) => {
       isMember: visitor.isMember,
       totalVisits: visitor.visitCount,
       lastVisit: visitor.lastVisit,
-      visits: visitor.visits.slice(-5).reverse(), // Last 5 visits
+      visits: visitor.visits.slice(-5).reverse(),
       allVisits: visitor.visits.length
     }))
     
@@ -112,23 +112,23 @@ const getSalesComparison = async (req, res) => {
   try {
     const now = new Date()
     
-    // Current week (last 7 days)
+  
     const currentWeekStart = new Date(now)
     currentWeekStart.setDate(now.getDate() - 7)
     
-    // Previous week (8-14 days ago)
+   
     const previousWeekStart = new Date(now)
     previousWeekStart.setDate(now.getDate() - 14)
     const previousWeekEnd = new Date(now)
     previousWeekEnd.setDate(now.getDate() - 7)
     
-    // Week before that (15-21 days ago)
+   
     const twoWeeksAgoStart = new Date(now)
     twoWeeksAgoStart.setDate(now.getDate() - 21)
     const twoWeeksAgoEnd = new Date(now)
     twoWeeksAgoEnd.setDate(now.getDate() - 14)
     
-    // Current week sales
+   
     const currentWeekOrders = await Order.aggregate([
       {
         $match: {
@@ -145,7 +145,7 @@ const getSalesComparison = async (req, res) => {
       }
     ])
     
-    // Previous week sales
+  
     const previousWeekOrders = await Order.aggregate([
       {
         $match: {
@@ -162,7 +162,7 @@ const getSalesComparison = async (req, res) => {
       }
     ])
     
-    // Two weeks ago sales
+ 
     const twoWeeksAgoOrders = await Order.aggregate([
       {
         $match: {
@@ -179,7 +179,7 @@ const getSalesComparison = async (req, res) => {
       }
     ])
     
-    // Daily sales for current week
+  
     const dailySales = await Order.aggregate([
       {
         $match: {
@@ -211,7 +211,7 @@ const getSalesComparison = async (req, res) => {
     const previousWeek = previousWeekOrders[0] || { totalSales: 0, orderCount: 0 }
     const twoWeeksAgo = twoWeeksAgoOrders[0] || { totalSales: 0, orderCount: 0 }
     
-    // Calculate growth percentage
+ 
     const growthVsPrevious = previousWeek.totalSales > 0 
       ? (((currentWeek.totalSales - previousWeek.totalSales) / previousWeek.totalSales) * 100).toFixed(1)
       : 0
@@ -313,7 +313,7 @@ const getTopSellingProducts = async (req, res) => {
   }
 }
 
-// Get revenue analytics
+
 const getRevenueAnalytics = async (req, res) => {
   try {
     const { period = '30' } = req.query
@@ -322,7 +322,7 @@ const getRevenueAnalytics = async (req, res) => {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
     
-    // Total revenue
+   
     const revenueData = await Order.aggregate([
       {
         $match: {
@@ -340,7 +340,7 @@ const getRevenueAnalytics = async (req, res) => {
       }
     ])
     
-    // Revenue by payment method
+   
     const revenueByPayment = await Order.aggregate([
       {
         $match: {
@@ -378,7 +378,7 @@ const getRevenueAnalytics = async (req, res) => {
   }
 }
 
-// Get customer growth analytics
+
 const getCustomerGrowth = async (req, res) => {
   try {
     const { period = '30' } = req.query
@@ -387,7 +387,7 @@ const getCustomerGrowth = async (req, res) => {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
     
-    // Daily registrations - ALL users (including admins)
+   
     const dailyRegistrations = await User.aggregate([
       {
         $match: {
@@ -412,7 +412,7 @@ const getCustomerGrowth = async (req, res) => {
       }
     ])
     
-    // Total customers - ALL users (including admins)
+ 
     const totalCustomers = await User.countDocuments({})
     const verifiedCustomers = await User.countDocuments({ status: 'verified' })
     
@@ -434,10 +434,131 @@ const getCustomerGrowth = async (req, res) => {
   }
 }
 
+
+const getRegistrationsVsVisits = async (req, res) => {
+  try {
+    const { period = '30' } = req.query
+    const days = parseInt(period)
+    
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+    
+  
+    const totalRegistrations = await User.countDocuments({
+      createdAt: { $gte: startDate }
+    })
+    
+    
+    const registeredUsersWhoVisited = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate }
+        }
+      },
+      {
+        $lookup: {
+          from: 'visitors',
+          localField: '_id',
+          foreignField: 'userId',
+          as: 'visits'
+        }
+      },
+      {
+        $match: {
+          'visits.0': { $exists: true }
+        }
+      },
+      {
+        $count: 'totalVisited'
+      }
+    ])
+    
+    const usersWhoVisited = registeredUsersWhoVisited[0]?.totalVisited || 0
+    const usersWhoDidntVisit = totalRegistrations - usersWhoVisited
+    
+  
+    const conversionRate = totalRegistrations > 0 ? 
+      ((usersWhoVisited / totalRegistrations) * 100).toFixed(1) : 0
+    
+   
+    const dailyBreakdown = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate }
+        }
+      },
+      {
+        $project: {
+          date: {
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+          },
+          userId: '$_id'
+        }
+      },
+      {
+        $group: {
+          _id: '$date',
+          registrations: { $sum: 1 },
+          userIds: { $push: '$userId' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'visitors',
+          let: { userIds: '$userIds' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $in: ['$userId', '$$userIds'] }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 }
+              }
+            }
+          ],
+          as: 'visitData'
+        }
+      },
+      {
+        $project: {
+          date: '$_id',
+          registrations: 1,
+          visits: { $ifNull: [{ $arrayElemAt: ['$visitData.count', 0] }, 0] }
+        }
+      },
+      {
+        $sort: { date: 1 }
+      }
+    ])
+    
+    res.json({
+      success: true,
+      data: {
+        totalRegistrations,
+        usersWhoVisited,
+        usersWhoDidntVisit,
+        conversionRate: parseFloat(conversionRate),
+        dailyBreakdown
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching registrations vs visits:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching registrations vs visits data',
+      error: error.message
+    })
+  }
+}
+
 module.exports = {
   getReturningCustomers,
   getSalesComparison,
   getTopSellingProducts,
   getRevenueAnalytics,
-  getCustomerGrowth
+  getCustomerGrowth,
+  getRegistrationsVsVisits
 }

@@ -6,10 +6,11 @@ const {
   getSalesComparison,
   getTopSellingProducts,
   getRevenueAnalytics,
-  getCustomerGrowth
+  getCustomerGrowth,
+  getRegistrationsVsVisits
 } = require('../controllers/analyticsController')
 
-// All analytics routes require admin authentication
+
 router.use(authenticate)
 router.use(authorizationRole('admin'))
 
@@ -19,5 +20,6 @@ router.get('/sales-comparison', getSalesComparison)
 router.get('/top-selling-products', getTopSellingProducts)
 router.get('/revenue', getRevenueAnalytics)
 router.get('/customer-growth', getCustomerGrowth)
+router.get('/registrations-vs-visits', getRegistrationsVsVisits)
 
 module.exports = router
