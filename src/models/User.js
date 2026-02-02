@@ -81,6 +81,15 @@ const userRegistrationSchema = new mongoose.Schema({
   smsOptOutDate: {
     type: Date,
   },
+  subscriptionStatus: {
+    type: String,
+    enum: ['none', 'active', 'cancelled', 'expired'],
+    default: 'none'
+  },
+  isTopiaCircleMember: {
+    type: Boolean,
+    default: false
+  },
 })
 
 const UserRegistration = mongoose.model('User', userRegistrationSchema)

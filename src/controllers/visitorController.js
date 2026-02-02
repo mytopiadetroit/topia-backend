@@ -69,6 +69,7 @@ const checkInVisitor = async (req, res) => {
             data: {
                 visitor,
                 isMember: visitor.isMember,
+                isTopiaCircleMember: user ? user.isTopiaCircleMember : false,
                 isNewVisitor: visitor.visitCount === 1,
                 userName: user ? user.fullName : null,
             },

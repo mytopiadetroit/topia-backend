@@ -28,4 +28,12 @@ router.get(
   adminController.exportCustomersData
 )
 
+// Product statistics
+router.get(
+  '/product-stats',
+  authenticate,
+  authorizationRole('admin'),
+  adminController.getProductStats
+)
+
 module.exports = router

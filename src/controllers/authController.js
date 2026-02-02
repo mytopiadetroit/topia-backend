@@ -561,6 +561,8 @@ module.exports = {
           smsOptOut: user.smsOptOut || false, // Add SMS preferences
           smsOptOutDate: user.smsOptOutDate || null,
           avatar: user.avatar || '', // Add avatar field
+          isTopiaCircleMember: user.isTopiaCircleMember || false, // Add Topia Circle membership status
+          subscriptionStatus: user.subscriptionStatus || 'inactive', // Add subscription status
         },
       }
       

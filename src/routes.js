@@ -24,6 +24,7 @@ const analyticsRoutes = require('./routes/analyticsRoutes')
 const dealRoutes = require('./routes/dealRoutes')
 const smsRoutes = require('./routes/smsRoutes')
 const smsReplyRoutes = require('./routes/smsReplyRoutes')
+const subscriptionRoutes = require('./routes/subscriptionRoutes')
 const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
@@ -44,6 +45,7 @@ module.exports = (app) => {
   app.use('/api/homepage-images', homepageImageRoutes)
   app.use('/api/visitors', visitorRoutes)
   app.use('/api/deals', dealRoutes)
+  app.use('/api/subscriptions', subscriptionRoutes)
   app.get('/api/pagesetting', getAllsettingImages)
   
   // Protected routes - authentication required

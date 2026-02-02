@@ -1,5 +1,6 @@
 const User = require('../models/User')
 const Order = require('../models/Order')
+const Product = require('../models/Product')
 const bcrypt = require('bcryptjs')
 const ExcelJS = require('exceljs')
 
@@ -387,8 +388,94 @@ const exportCustomersData = async (req, res) => {
   }
 }
 
+// Get product statistics
+const getProductStats = async (req, res) => {
+  try {
+    // Get total products count
+    const totalProducts = await Product.countDocuments({ isActive: true })
+    
+    // Get total variants count (sum of all variants across all products)
+    const productsWithVariants = await Product.find({ 
+      isActive: true, 
+      hasVariants: true,
+      variants: { $exists: true, $ne: [] }
+    })
+    const totalVariants = productsWithVariants.reduce((sum, product) => {
+      return sum + (product.variants ? product.variants.length : 0)
+    }, 0)
+    
+    // Get total flavors count (sum of all flavors across all products)
+    const productsWithFlavors = await Product.find({ 
+      isActive: true,
+      flavors: { $exists: true, $ne: [] }
+    })
+    const totalFlavors = productsWithFlavors.reduce((sum, product) => {
+      return sum + (product.flavors ? product.flavors.filter(f => f.isActive !== false).length : 0)
+    }, 0)
+    
+    // Get out of stock products with details
+    const outOfStockProducts = await Product.find({ 
+      isActive: true,
+      $or: [
+        { stock: 0 },
+        { stock: { $exists: false }, hasVariants: false },
+        { 
+          hasVariants: true,
+          $or: [
+            { 'variants.stock': { $lte: 0 } },
+            { variants: { $size: 0 } }
+          ]
+        }
+      ]
+    }).select('name stock variants flavors hasVariants')
+    
+    // Process out of stock products to get detailed info
+    const outOfStockDetails = outOfStockProducts.map(product => {
+      let reason = 'No stock'
+      let stockInfo = product.stock || 0
+      
+      if (product.hasVariants && product.variants && product.variants.length > 0) {
+        const totalVariantStock = product.variants.reduce((sum, variant) => sum + (variant.stock || 0), 0)
+        stockInfo = totalVariantStock
+        if (totalVariantStock === 0) {
+          reason = 'All variants out of stock'
+        }
+      }
+      
+      return {
+        _id: product._id,
+        name: product.name,
+        stock: stockInfo,
+        reason: reason,
+        hasVariants: product.hasVariants,
+        variantCount: product.variants ? product.variants.length : 0,
+        flavorCount: product.flavors ? product.flavors.filter(f => f.isActive !== false).length : 0
+      }
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalProducts,
+        totalVariants,
+        totalFlavors,
+        outOfStockCount: outOfStockProducts.length,
+        outOfStockProducts: outOfStockDetails
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching product stats:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching product statistics',
+      error: error.message
+    })
+  }
+}
+
 module.exports = {
   getAdminProfile,
   updateAdminProfile,
-  exportCustomersData
+  exportCustomersData,
+  getProductStats
 }
