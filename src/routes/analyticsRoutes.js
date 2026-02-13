@@ -7,7 +7,8 @@ const {
   getTopSellingProducts,
   getRevenueAnalytics,
   getCustomerGrowth,
-  getRegistrationsVsVisits
+  getRegistrationsVsVisits,
+  getDashboardStats
 } = require('../controllers/analyticsController')
 
 
@@ -15,6 +16,7 @@ router.use(authenticate)
 router.use(authorizationRole('admin'))
 
 // Analytics endpoints
+router.get('/dashboard-stats', getDashboardStats)
 router.get('/returning-customers', getReturningCustomers)
 router.get('/sales-comparison', getSalesComparison)
 router.get('/top-selling-products', getTopSellingProducts)

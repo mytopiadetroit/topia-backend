@@ -31,6 +31,12 @@ router.get('/search-users', smsController.searchUsers);
 // Send SMS to individual user
 router.post('/send-individual', smsController.sendIndividualSMS);
 
+// Send SMS to all Topia Circle members
+router.post('/send-to-topia-members', smsController.sendToTopiaMembers);
+
+// Preview Topia Circle members
+router.get('/preview-topia-members', smsController.previewTopiaMembers);
+
 // Get SMS details (must be last to avoid route conflicts)
 router.get('/:id', smsController.getSMSDetails);
 

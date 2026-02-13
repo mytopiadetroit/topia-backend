@@ -4,8 +4,22 @@ const User = require('../models/User')
 
 const createSubscription = async (req, res) => {
   try {
-    const { preferences, allergies, paymentMethodId, selectedProducts } = req.body
+    const { preferences, allergies, paymentMethodId, billingAddress, selectedProducts } = req.body
     const userId = req.user.id
+
+    if (!billingAddress || !billingAddress.street || !billingAddress.city || !billingAddress.zipCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Billing address is required. Please provide street, city, and ZIP code.'
+      })
+    }
+
+    if (!paymentMethodId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method is required'
+      })
+    }
 
     const existingSubscription = await Subscription.findOne({ userId })
     if (existingSubscription) {
@@ -20,7 +34,6 @@ const createSubscription = async (req, res) => {
     const nextBillingDate = new Date()
     nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
 
-    // Process selected products (including variants and flavors)
     const processedProducts = []
     if (selectedProducts && selectedProducts.length > 0) {
       const Product = require('../models/Product')
@@ -69,7 +82,15 @@ const createSubscription = async (req, res) => {
 
     const subscription = new Subscription({
       userId,
-      monthlyPrice: settings.monthlyPrice,
+      monthlyPrice: settings.monthlyPrice || 100,
+      boxValue: 200,
+      billingAddress: {
+        street: billingAddress.street,
+        city: billingAddress.city,
+        state: billingAddress.state,
+        zipCode: billingAddress.zipCode,
+        country: billingAddress.country || 'USA'
+      },
       preferences: preferences || [],
       allergies: allergies || [],
       paymentMethodId,
@@ -93,7 +114,8 @@ const createSubscription = async (req, res) => {
     console.error('Error creating subscription:', error)
     res.status(500).json({
       success: false,
-      message: 'Failed to create subscription'
+      message: 'Failed to create subscription',
+      error: error.message
     })
   }
 }
@@ -403,6 +425,79 @@ const updateSubscriptionAdmin = async (req, res) => {
   }
 }
 
+const adminUpgradeToTopiaCircle = async (req, res) => {
+  try {
+    const { userId } = req.params
+    const { billingAddress, paymentNote } = req.body
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      })
+    }
+
+    if (user.isTopiaCircleMember && user.subscriptionStatus === 'active') {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already a Topia Circle member'
+      })
+    }
+
+    const existingSubscription = await Subscription.findOne({ userId })
+    
+    const settings = await SubscriptionSettings.findOne() || new SubscriptionSettings()
+    const nextBillingDate = new Date()
+    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
+
+    if (existingSubscription) {
+      existingSubscription.status = 'active'
+      existingSubscription.nextBillingDate = nextBillingDate
+      existingSubscription.billingAddress = billingAddress || existingSubscription.billingAddress
+      existingSubscription.paymentNote = paymentNote || 'Upgraded by admin'
+      if (!existingSubscription.paymentMethodId) {
+        existingSubscription.paymentMethodId = 'admin_upgrade'
+      }
+      await existingSubscription.save()
+    } else {
+      await Subscription.create({
+        userId,
+        status: 'active',
+        nextBillingDate,
+        paymentMethodId: 'admin_upgrade',
+        billingAddress: billingAddress || {
+          street: 'N/A',
+          city: 'N/A',
+          state: 'N/A',
+          zipCode: 'N/A'
+        },
+        paymentNote: paymentNote || 'Created by admin',
+        preferences: [],
+        allergies: [],
+        selectedProducts: []
+      })
+    }
+
+    await User.findByIdAndUpdate(userId, {
+      subscriptionStatus: 'active',
+      isTopiaCircleMember: true
+    })
+
+    res.json({
+      success: true,
+      message: 'User upgraded to Topia Circle successfully'
+    })
+  } catch (error) {
+    console.error('Error upgrading user:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error upgrading user to Topia Circle',
+      error: error.message
+    })
+  }
+}
+
 module.exports = {
   createSubscription,
   getSubscription,
@@ -411,5 +506,6 @@ module.exports = {
   getSubscriptionSettings,
   updateSubscriptionSettings,
   getAllSubscriptions,
-  updateSubscriptionAdmin
+  updateSubscriptionAdmin,
+  adminUpgradeToTopiaCircle
 }

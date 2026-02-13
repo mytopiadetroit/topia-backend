@@ -22,7 +22,34 @@ const subscriptionSchema = new mongoose.Schema({
   },
   monthlyPrice: {
     type: Number,
-    required: true
+    required: true,
+    default: 100
+  },
+  boxValue: {
+    type: Number,
+    default: 200
+  },
+  billingAddress: {
+    street: {
+      type: String,
+      required: true
+    },
+    city: {
+      type: String,
+      required: true
+    },
+    state: {
+      type: String,
+      required: true
+    },
+    zipCode: {
+      type: String,
+      required: true
+    },
+    country: {
+      type: String,
+      default: 'USA'
+    }
   },
   preferences: {
     type: [String],
@@ -39,8 +66,7 @@ const subscriptionSchema = new mongoose.Schema({
   selectedProducts: [{
     productId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true
+      ref: 'Product'
     },
     productName: String,
     productPrice: Number,

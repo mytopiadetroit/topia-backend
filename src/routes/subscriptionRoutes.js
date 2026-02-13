@@ -8,7 +8,8 @@ const {
   getSubscriptionSettings,
   updateSubscriptionSettings,
   getAllSubscriptions,
-  updateSubscriptionAdmin
+  updateSubscriptionAdmin,
+  adminUpgradeToTopiaCircle
 } = require('../controllers/subscriptionController')
 const { authenticate, authorizationRole } = require('../middlewares/authMiddleware')
 
@@ -20,5 +21,6 @@ router.post('/cancel', authenticate, cancelSubscription)
 router.put('/settings', authenticate, authorizationRole('admin'), updateSubscriptionSettings)
 router.get('/admin/all', authenticate, authorizationRole('admin'), getAllSubscriptions)
 router.put('/admin/:id', authenticate, authorizationRole('admin'), updateSubscriptionAdmin)
+router.post('/admin/upgrade/:userId', authenticate, authorizationRole('admin'), adminUpgradeToTopiaCircle)
 
 module.exports = router

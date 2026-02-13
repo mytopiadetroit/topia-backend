@@ -5,18 +5,24 @@ const Visitor = require('../models/Visitor')
 
 const getReturningCustomers = async (req, res) => {
   try {
-    const { period = '30', limit = 50 } = req.query 
-    const days = parseInt(period)
+    const { period = '30', limit = 50 } = req.query;
     
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+    let dateFilter = {};
+    let startDate = new Date();
     
-  
+    if (period !== 'all') {
+      const days = parseInt(period);
+      startDate.setDate(startDate.getDate() - days);
+      dateFilter = { lastVisit: { $gte: startDate } };
+    } else {
+      startDate = new Date(0);
+    }
+    
     const returningVisitors = await Visitor.aggregate([
       {
         $match: {
           visitCount: { $gt: 1 },
-          lastVisit: { $gte: startDate }
+          ...dateFilter
         }
       },
       {
@@ -26,20 +32,19 @@ const getReturningCustomers = async (req, res) => {
           avgVisits: { $avg: '$visitCount' }
         }
       }
-    ])
+    ]);
     
- 
-    const totalVisitors = await Visitor.countDocuments({
-      lastVisit: { $gte: startDate }
-    })
+    const totalVisitorsMatch = period !== 'all' ? { lastVisit: { $gte: startDate } } : {};
+    const totalVisitors = await Visitor.countDocuments(totalVisitorsMatch);
     
-   
+    const dailyTrendMatch = {
+      visitCount: { $gt: 1 },
+      ...(period !== 'all' && { lastVisit: { $gte: startDate } })
+    };
+    
     const dailyTrend = await Visitor.aggregate([
       {
-        $match: {
-          visitCount: { $gt: 1 },
-          lastVisit: { $gte: startDate }
-        }
+        $match: dailyTrendMatch
       },
       {
         $project: {
@@ -57,19 +62,19 @@ const getReturningCustomers = async (req, res) => {
       {
         $sort: { _id: 1 }
       }
-    ])
+    ]);
     
-   
-    const returningCustomersList = await Visitor.find({
+    const returningCustomersListMatch = {
       visitCount: { $gt: 1 },
-      lastVisit: { $gte: startDate }
-    })
+      ...(period !== 'all' && { lastVisit: { $gte: startDate } })
+    };
+    
+    const returningCustomersList = await Visitor.find(returningCustomersListMatch)
       .populate('userId', 'fullName email phone')
       .sort({ visitCount: -1, lastVisit: -1 })
       .limit(parseInt(limit))
-      .lean()
+      .lean();
     
- 
     const formattedList = returningCustomersList.map(visitor => ({
       _id: visitor._id,
       phone: visitor.phone,
@@ -248,16 +253,20 @@ const getSalesComparison = async (req, res) => {
 
 const getTopSellingProducts = async (req, res) => {
   try {
-    const { limit = 10, period = '30' } = req.query
-    const days = parseInt(period)
+    const { limit = 10, period = '30' } = req.query;
     
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+    let dateFilter = {};
+    if (period !== 'all') {
+      const days = parseInt(period);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      dateFilter = { createdAt: { $gte: startDate } };
+    }
     
     const topProducts = await Order.aggregate([
       {
         $match: {
-          createdAt: { $gte: startDate },
+          ...dateFilter,
           status: { $in: ['fulfilled', 'completed'] }
         }
       },
@@ -316,17 +325,20 @@ const getTopSellingProducts = async (req, res) => {
 
 const getRevenueAnalytics = async (req, res) => {
   try {
-    const { period = '30' } = req.query
-    const days = parseInt(period)
+    const { period = '30' } = req.query;
     
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+    let dateFilter = {};
+    if (period !== 'all') {
+      const days = parseInt(period);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      dateFilter = { createdAt: { $gte: startDate } };
+    }
     
-   
     const revenueData = await Order.aggregate([
       {
         $match: {
-          createdAt: { $gte: startDate },
+          ...dateFilter,
           status: { $in: ['fulfilled', 'completed'] }
         }
       },
@@ -338,13 +350,12 @@ const getRevenueAnalytics = async (req, res) => {
           avgOrderValue: { $avg: '$totalAmount' }
         }
       }
-    ])
+    ]);
     
-   
     const revenueByPayment = await Order.aggregate([
       {
         $match: {
-          createdAt: { $gte: startDate },
+          ...dateFilter,
           status: { $in: ['fulfilled', 'completed'] }
         }
       },
@@ -355,7 +366,7 @@ const getRevenueAnalytics = async (req, res) => {
           count: { $sum: 1 }
         }
       }
-    ])
+    ]);
     
     const revenue = revenueData[0] || { totalRevenue: 0, totalOrders: 0, avgOrderValue: 0 }
     
@@ -381,19 +392,18 @@ const getRevenueAnalytics = async (req, res) => {
 
 const getCustomerGrowth = async (req, res) => {
   try {
-    const { period = '30' } = req.query
-    const days = parseInt(period)
+    const { period = '30' } = req.query;
     
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+    let dateFilter = {};
+    if (period !== 'all') {
+      const days = parseInt(period);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      dateFilter = { createdAt: { $gte: startDate } };
+    }
     
-   
     const dailyRegistrations = await User.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: startDate }
-        }
-      },
+      ...(period !== 'all' ? [{ $match: dateFilter }] : []),
       {
         $project: {
           date: {
@@ -437,24 +447,20 @@ const getCustomerGrowth = async (req, res) => {
 
 const getRegistrationsVsVisits = async (req, res) => {
   try {
-    const { period = '30' } = req.query
-    const days = parseInt(period)
+    const { period = '30' } = req.query;
     
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+    let dateFilter = {};
+    if (period !== 'all') {
+      const days = parseInt(period);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      dateFilter = { createdAt: { $gte: startDate } };
+    }
     
-  
-    const totalRegistrations = await User.countDocuments({
-      createdAt: { $gte: startDate }
-    })
-    
+    const totalRegistrations = await User.countDocuments(dateFilter);
     
     const registeredUsersWhoVisited = await User.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: startDate }
-        }
-      },
+      ...(period !== 'all' ? [{ $match: dateFilter }] : []),
       {
         $lookup: {
           from: 'visitors',
@@ -471,22 +477,16 @@ const getRegistrationsVsVisits = async (req, res) => {
       {
         $count: 'totalVisited'
       }
-    ])
+    ]);
     
-    const usersWhoVisited = registeredUsersWhoVisited[0]?.totalVisited || 0
-    const usersWhoDidntVisit = totalRegistrations - usersWhoVisited
+    const usersWhoVisited = registeredUsersWhoVisited[0]?.totalVisited || 0;
+    const usersWhoDidntVisit = totalRegistrations - usersWhoVisited;
     
-  
     const conversionRate = totalRegistrations > 0 ? 
-      ((usersWhoVisited / totalRegistrations) * 100).toFixed(1) : 0
+      ((usersWhoVisited / totalRegistrations) * 100).toFixed(1) : 0;
     
-   
     const dailyBreakdown = await User.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: startDate }
-        }
-      },
+      ...(period !== 'all' ? [{ $match: dateFilter }] : []),
       {
         $project: {
           date: {
@@ -560,5 +560,67 @@ module.exports = {
   getTopSellingProducts,
   getRevenueAnalytics,
   getCustomerGrowth,
-  getRegistrationsVsVisits
+  getRegistrationsVsVisits,
+  getDashboardStats
+}
+
+// Get Dashboard Statistics including Topia Circle members
+async function getDashboardStats(req, res) {
+  try {
+    const { period = 'all' } = req.query;
+    
+    let dateFilter = {};
+    if (period !== 'all') {
+      const days = parseInt(period);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      dateFilter = { createdAt: { $gte: startDate } };
+    }
+    
+    const topiaCircleMembers = await User.countDocuments({
+      isTopiaCircleMember: true,
+      subscriptionStatus: 'active',
+      ...(period !== 'all' && dateFilter)
+    });
+    
+    const totalUsers = await User.countDocuments(period !== 'all' ? dateFilter : {});
+    
+    const totalOrders = await Order.countDocuments(period !== 'all' ? dateFilter : {});
+    
+    const revenueMatch = { status: { $in: ['completed', 'delivered'] } };
+    if (period !== 'all') {
+      revenueMatch.createdAt = dateFilter.createdAt;
+    }
+    
+    const revenueData = await Order.aggregate([
+      { $match: revenueMatch },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const totalRevenue = revenueData[0]?.total || 0;
+    
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentOrders = await Order.countDocuments({
+      createdAt: { $gte: thirtyDaysAgo }
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        topiaCircleMembers,
+        totalUsers,
+        totalOrders,
+        totalRevenue,
+        recentOrders,
+        period
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching dashboard statistics',
+      error: error.message
+    });
+  }
 }

@@ -28,12 +28,12 @@ const smsNotificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['bulk', 'birthday', 'event', 'sale', 'promotion', 'reminder', 'custom'],
+    enum: ['bulk', 'birthday', 'event', 'sale', 'promotion', 'reminder', 'custom', 'topia_circle'],
     required: true
   },
   targetAudience: {
     type: String,
-    enum: ['verified', 'incomplete', 'custom', 'birthday'],
+    enum: ['verified', 'incomplete', 'custom', 'birthday', 'topia_members'],
     required: true
   },
   totalRecipients: {

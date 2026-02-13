@@ -689,3 +689,129 @@ exports.sendIndividualSMS = async (req, res) => {
     });
   }
 };
+
+// Send SMS to all Topia Circle Members
+exports.sendToTopiaMembers = async (req, res) => {
+  try {
+    const { message, selectedMembers } = req.body;
+    
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message is required'
+      });
+    }
+    
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+    
+    let query = {
+      isTopiaCircleMember: true,
+      subscriptionStatus: 'active',
+      phone: { $exists: true, $ne: '' },
+      $or: [
+        { smsOptOut: { $exists: false } },
+        { smsOptOut: false }
+      ]
+    };
+
+    if (selectedMembers && selectedMembers.length > 0) {
+      query._id = { $in: selectedMembers };
+    }
+    
+    const topiaMembers = await User.find(query).select('_id fullName phone email');
+    
+    if (topiaMembers.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No Topia Circle members found'
+      });
+    }
+    
+    // Prepare recipients
+    const recipients = topiaMembers.map(member => ({
+      userId: member._id,
+      name: member.fullName,
+      phone: member.phone
+    }));
+    
+    // Create SMS notification record
+    const smsNotification = new SmsNotification({
+      message,
+      type: 'topia_circle',
+      targetAudience: 'topia_members',
+      totalRecipients: recipients.length,
+      sentBy: req.user.id,
+      status: 'sending'
+    });
+    
+    await smsNotification.save();
+    
+    // Send SMS to all members
+    sendBulkSMS(recipients, message, (progress) => {
+      console.log(`Topia SMS Progress: ${progress.current}/${progress.total} - Success: ${progress.success}, Failed: ${progress.failed}`);
+    }).then(async (results) => {
+      smsNotification.recipients = results.details;
+      smsNotification.successCount = results.success;
+      smsNotification.failedCount = results.failed;
+      smsNotification.status = 'completed';
+      smsNotification.completedAt = new Date();
+      await smsNotification.save();
+      
+      console.log(`Topia Circle SMS completed: ${results.success} sent, ${results.failed} failed`);
+    }).catch(async (error) => {
+      console.error('Topia Circle SMS failed:', error);
+      smsNotification.status = 'failed';
+      await smsNotification.save();
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: `SMS sending started to ${recipients.length} Topia Circle members`,
+      notificationId: smsNotification._id,
+      totalMembers: recipients.length,
+      successCount: 0,
+      failureCount: 0
+    });
+  } catch (error) {
+    console.error('Error in sendToTopiaMembers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send SMS to Topia members',
+      error: error.message
+    });
+  }
+};
+
+// Preview Topia Circle Members
+exports.previewTopiaMembers = async (req, res) => {
+  try {
+    const topiaMembers = await User.find({
+      isTopiaCircleMember: true,
+      subscriptionStatus: 'active',
+      phone: { $exists: true, $ne: '' },
+      $or: [
+        { smsOptOut: { $exists: false } },
+        { smsOptOut: false }
+      ]
+    }).select('fullName phone email subscriptionStatus');
+    
+    res.status(200).json({
+      success: true,
+      count: topiaMembers.length,
+      members: topiaMembers
+    });
+  } catch (error) {
+    console.error('Error in previewTopiaMembers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to preview Topia members',
+      error: error.message
+    });
+  }
+};
+
