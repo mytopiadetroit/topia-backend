@@ -9,7 +9,7 @@ const subscriptionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'cancelled', 'expired'],
+    enum: ['active', 'cancelled', 'expired', 'paused'],
     default: 'active'
   },
   startDate: {
@@ -19,6 +19,21 @@ const subscriptionSchema = new mongoose.Schema({
   nextBillingDate: {
     type: Date,
     required: true
+  },
+  billingDayOfMonth: {
+    type: Number,
+    min: 1,
+    max: 28,
+    default: null
+  },
+  pausedAt: {
+    type: Date,
+    default: null
+  },
+  pausedBy: {
+    type: String,
+    enum: ['admin', 'user'],
+    default: null
   },
   monthlyPrice: {
     type: Number,

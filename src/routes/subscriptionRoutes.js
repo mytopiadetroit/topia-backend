@@ -9,7 +9,10 @@ const {
   updateSubscriptionSettings,
   getAllSubscriptions,
   updateSubscriptionAdmin,
-  adminUpgradeToTopiaCircle
+  adminUpgradeToTopiaCircle,
+  updateBillingDate,
+  updatePaymentMethod,
+  toggleSubscriptionStatus
 } = require('../controllers/subscriptionController')
 const { authenticate, authorizationRole } = require('../middlewares/authMiddleware')
 
@@ -22,5 +25,8 @@ router.put('/settings', authenticate, authorizationRole('admin'), updateSubscrip
 router.get('/admin/all', authenticate, authorizationRole('admin'), getAllSubscriptions)
 router.put('/admin/:id', authenticate, authorizationRole('admin'), updateSubscriptionAdmin)
 router.post('/admin/upgrade/:userId', authenticate, authorizationRole('admin'), adminUpgradeToTopiaCircle)
+router.put('/admin/:subscriptionId/billing-date', authenticate, authorizationRole('admin'), updateBillingDate)
+router.put('/admin/:subscriptionId/payment-method', authenticate, authorizationRole('admin'), updatePaymentMethod)
+router.put('/admin/:subscriptionId/status', authenticate, authorizationRole('admin'), toggleSubscriptionStatus)
 
 module.exports = router

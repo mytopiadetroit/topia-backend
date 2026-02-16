@@ -509,3 +509,171 @@ module.exports = {
   updateSubscriptionAdmin,
   adminUpgradeToTopiaCircle
 }
+const updateBillingDate = async (req, res) => {
+  try {
+    const { subscriptionId } = req.params;
+    const { billingDayOfMonth } = req.body;
+
+    if (!billingDayOfMonth || billingDayOfMonth < 1 || billingDayOfMonth > 28) {
+      return res.status(400).json({
+        success: false,
+        message: 'Billing day must be between 1 and 28'
+      });
+    }
+
+    const nextBilling = new Date();
+    nextBilling.setDate(billingDayOfMonth);
+    if (nextBilling <= new Date()) {
+      nextBilling.setMonth(nextBilling.getMonth() + 1);
+    }
+
+    const updatedSubscription = await Subscription.findByIdAndUpdate(
+      subscriptionId,
+      {
+        billingDayOfMonth,
+        nextBillingDate: nextBilling
+      },
+      { new: true, runValidators: false }
+    )
+      .populate('userId', 'fullName email phone')
+      .populate('selectedProducts.productId', 'name price image');
+
+    if (!updatedSubscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Billing date updated successfully',
+      data: updatedSubscription
+    });
+  } catch (error) {
+    console.error('Error updating billing date:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating billing date',
+      error: error.message
+    });
+  }
+};
+
+const updatePaymentMethod = async (req, res) => {
+  try {
+    const { subscriptionId } = req.params;
+    const { paymentMethodId } = req.body;
+
+    if (!paymentMethodId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method ID is required'
+      });
+    }
+
+    const updatedSubscription = await Subscription.findByIdAndUpdate(
+      subscriptionId,
+      { paymentMethodId },
+      { new: true, runValidators: false }
+    )
+      .populate('userId', 'fullName email phone')
+      .populate('selectedProducts.productId', 'name price image');
+
+    if (!updatedSubscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment method updated successfully',
+      data: updatedSubscription
+    });
+  } catch (error) {
+    console.error('Error updating payment method:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating payment method',
+      error: error.message
+    });
+  }
+};
+
+const toggleSubscriptionStatus = async (req, res) => {
+  try {
+    const { subscriptionId } = req.params;
+    const { action } = req.body;
+
+    const subscription = await Subscription.findById(subscriptionId);
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    let updateData = {};
+    
+    if (action === 'pause') {
+      updateData = {
+        status: 'paused',
+        pausedAt: new Date(),
+        pausedBy: 'admin'
+      };
+      
+      await User.findByIdAndUpdate(subscription.userId, {
+        subscriptionStatus: 'paused'
+      });
+    } else if (action === 'activate') {
+      updateData = {
+        status: 'active',
+        pausedAt: null,
+        pausedBy: null
+      };
+      
+      await User.findByIdAndUpdate(subscription.userId, {
+        subscriptionStatus: 'active',
+        isTopiaCircleMember: true
+      });
+    }
+
+    const updatedSubscription = await Subscription.findByIdAndUpdate(
+      subscriptionId,
+      updateData,
+      { new: true, runValidators: false }
+    )
+      .populate('userId', 'fullName email phone')
+      .populate('selectedProducts.productId', 'name price image');
+
+    res.json({
+      success: true,
+      message: `Subscription ${action === 'pause' ? 'paused' : 'activated'} successfully`,
+      data: updatedSubscription
+    });
+  } catch (error) {
+    console.error('Error toggling subscription status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating subscription status',
+      error: error.message
+    });
+  }
+};
+
+module.exports = {
+  createSubscription,
+  getSubscription,
+  updateSubscription,
+  cancelSubscription,
+  getSubscriptionSettings,
+  updateSubscriptionSettings,
+  getAllSubscriptions,
+  updateSubscriptionAdmin,
+  adminUpgradeToTopiaCircle,
+  updateBillingDate,
+  updatePaymentMethod,
+  toggleSubscriptionStatus
+};
