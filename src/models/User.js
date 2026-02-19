@@ -83,7 +83,7 @@ const userRegistrationSchema = new mongoose.Schema({
   },
   subscriptionStatus: {
     type: String,
-    enum: ['none', 'active', 'cancelled', 'expired'],
+    enum: ['none', 'active', 'cancelled', 'expired', 'paused'],
     default: 'none'
   },
   isTopiaCircleMember: {

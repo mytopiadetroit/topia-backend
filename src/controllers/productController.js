@@ -258,6 +258,33 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
+exports.getAllProductsNoPagination = async (req, res) => {
+  try {
+    const { includeInactive } = req.query;
+    let filter = {};
+    
+    if (includeInactive !== 'true') {
+      filter.isActive = true;
+    }
+    
+    const products = await Product.find(filter)
+      .populate('category', 'category')
+      .populate('reviewTags', 'label isActive')
+      .sort({ order: 1, createdAt: -1 });
+    
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      data: products
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 exports.getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)

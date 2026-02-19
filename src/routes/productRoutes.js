@@ -2,20 +2,16 @@ const express = require('express')
 const router = express.Router()
 const productController = require('../controllers/productController')
 
-// Middleware to log request details for debugging
+
 const logRequestDetails = (req, res, next) => {
-  console.log('=== REQUEST DETAILS ===')
-  console.log('Content-Type:', req.headers['content-type'])
-  console.log('Request Method:', req.method)
-  console.log('Request Path:', req.path)
-  console.log('=== END REQUEST DETAILS ===')
+
   next()
 }
 
-// Apply logging middleware to all routes
+
 router.use(logRequestDetails)
 
-// Test upload endpoint for debugging
+
 router.post(
   '/test-upload',
   productController.upload.array('images', 5),
@@ -40,6 +36,8 @@ router
     productController.upload.array('images', 5),
     productController.createProduct,
   )
+
+router.get('/all-no-pagination', productController.getAllProductsNoPagination)
 
 router
   .route('/:id')

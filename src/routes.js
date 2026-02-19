@@ -25,6 +25,8 @@ const dealRoutes = require('./routes/dealRoutes')
 const smsRoutes = require('./routes/smsRoutes')
 const smsReplyRoutes = require('./routes/smsReplyRoutes')
 const subscriptionRoutes = require('./routes/subscriptionRoutes')
+const boxPickupRoutes = require('./routes/boxPickupRoutes')
+const pendingChangeRoutes = require('./routes/pendingChangeRoutes')
 const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
@@ -58,6 +60,8 @@ module.exports = (app) => {
   app.use('/api/analytics', analyticsRoutes)
   app.use('/api/sms', smsRoutes)
   app.use('/api/sms-replies', smsReplyRoutes)
-  app.use('/api', orderRoutes) // Mounted on /api because routes already have /orders and /admin/orders paths
+  app.use('/api/box-pickups', boxPickupRoutes)
+  app.use('/api/pending-changes', pendingChangeRoutes)
+  app.use('/api', orderRoutes) 
 
 }

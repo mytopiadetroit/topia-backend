@@ -232,7 +232,7 @@ const updateSubscription = async (req, res) => {
       subscription.selectedProducts = processedProducts
     }
 
-    await subscription.save()
+    await subscription.save({ validateBeforeSave: false })
 
     res.json({
       success: true,
