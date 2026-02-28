@@ -512,38 +512,58 @@ module.exports = {
 const updateBillingDate = async (req, res) => {
   try {
     const { subscriptionId } = req.params;
-    const { billingDayOfMonth } = req.body;
+    const { billingDayOfMonth, nextBillingDate } = req.body;
 
-    if (!billingDayOfMonth || billingDayOfMonth < 1 || billingDayOfMonth > 28) {
-      return res.status(400).json({
-        success: false,
-        message: 'Billing day must be between 1 and 28'
-      });
-    }
-
-    const nextBilling = new Date();
-    nextBilling.setDate(billingDayOfMonth);
-    if (nextBilling <= new Date()) {
-      nextBilling.setMonth(nextBilling.getMonth() + 1);
-    }
-
-    const updatedSubscription = await Subscription.findByIdAndUpdate(
-      subscriptionId,
-      {
-        billingDayOfMonth,
-        nextBillingDate: nextBilling
-      },
-      { new: true, runValidators: false }
-    )
-      .populate('userId', 'fullName email phone')
-      .populate('selectedProducts.productId', 'name price image');
-
-    if (!updatedSubscription) {
+    const subscription = await Subscription.findById(subscriptionId);
+    if (!subscription) {
       return res.status(404).json({
         success: false,
         message: 'Subscription not found'
       });
     }
+
+    if (nextBillingDate) {
+      const selectedDate = new Date(nextBillingDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (selectedDate < today) {
+        return res.status(400).json({
+          success: false,
+          message: 'Billing date cannot be in the past'
+        });
+      }
+
+      subscription.nextBillingDate = selectedDate;
+      subscription.billingDayOfMonth = selectedDate.getDate();
+    } else if (billingDayOfMonth) {
+      if (billingDayOfMonth < 1 || billingDayOfMonth > 28) {
+        return res.status(400).json({
+          success: false,
+          message: 'Billing day must be between 1 and 28'
+        });
+      }
+
+      const nextBilling = new Date();
+      nextBilling.setDate(billingDayOfMonth);
+      if (nextBilling <= new Date()) {
+        nextBilling.setMonth(nextBilling.getMonth() + 1);
+      }
+
+      subscription.billingDayOfMonth = billingDayOfMonth;
+      subscription.nextBillingDate = nextBilling;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Either billingDayOfMonth or nextBillingDate is required'
+      });
+    }
+
+    await subscription.save();
+
+    const updatedSubscription = await Subscription.findById(subscriptionId)
+      .populate('userId', 'fullName email phone')
+      .populate('selectedProducts.productId', 'name price image');
 
     res.json({
       success: true,
@@ -663,6 +683,49 @@ const toggleSubscriptionStatus = async (req, res) => {
   }
 };
 
+const updatePaymentInfo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cardHolderName, cardLastFour, cardBrand, expiryMonth, expiryYear, billingZip } = req.body;
+
+    const subscription = await Subscription.findById(id);
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    subscription.paymentInfo = {
+      cardHolderName,
+      cardLastFour,
+      cardBrand,
+      expiryMonth,
+      expiryYear,
+      billingZip
+    };
+
+    await subscription.save({ validateBeforeSave: false });
+
+    const updatedSubscription = await Subscription.findById(id)
+      .populate('userId', 'fullName email phone')
+      .populate('selectedProducts.productId', 'name price image');
+
+    res.json({
+      success: true,
+      message: 'Payment information updated successfully',
+      data: updatedSubscription
+    });
+  } catch (error) {
+    console.error('Error updating payment info:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating payment information',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSubscription,
   getSubscription,
@@ -675,5 +738,6 @@ module.exports = {
   adminUpgradeToTopiaCircle,
   updateBillingDate,
   updatePaymentMethod,
-  toggleSubscriptionStatus
+  toggleSubscriptionStatus,
+  updatePaymentInfo
 };

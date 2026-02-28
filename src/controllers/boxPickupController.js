@@ -1,6 +1,110 @@
 const BoxPickup = require('../models/BoxPickup')
 const Subscription = require('../models/Subscription')
 const User = require('../models/User')
+const Product = require('../models/Product')
+
+const deductInventory = async (items) => {
+  console.log('🔍 Starting inventory deduction for items:', JSON.stringify(items, null, 2));
+  
+  for (const item of items) {
+    try {
+      console.log(`\n📦 Processing item: ${item.itemName}`);
+      console.log(`   Quantity: ${item.quantity}`);
+      console.log(`   Notes: ${item.notes}`);
+      
+      const notes = item.notes || '';
+      const quantity = item.quantity || 1;
+      
+      const sizeMatch = notes.match(/Size:\s*(\d+)(grams|kg|ml|liters|pieces|G)/i);
+      const flavorMatch = notes.match(/Flavor:\s*([^,]+)/i);
+      const priceMatch = notes.match(/Price:\s*\$?(\d+\.?\d*)/i);
+      
+      console.log(`   Parsed - Size: ${sizeMatch ? sizeMatch[0] : 'none'}, Flavor: ${flavorMatch ? flavorMatch[1] : 'none'}, Price: ${priceMatch ? priceMatch[0] : 'none'}`);
+      
+      if (!priceMatch) {
+        console.log('   ⚠️ No price found in notes, skipping');
+        continue;
+      }
+      
+      const productName = item.itemName.split('(')[0].trim();
+      console.log(`   🔎 Searching for product: "${productName}"`);
+      
+      const product = await Product.findOne({ 
+        name: { $regex: new RegExp(productName, 'i') } 
+      });
+      
+      if (!product) {
+        console.log(`   ❌ Product not found: ${productName}`);
+        continue;
+      }
+      
+      console.log(`   ✅ Product found: ${product.name} (ID: ${product._id})`);
+      console.log(`   Product has: ${product.flavors?.length || 0} flavors, ${product.variants?.length || 0} variants, stock: ${product.stock}`);
+      
+      if (flavorMatch && product.flavors && product.flavors.length > 0) {
+        const flavorName = flavorMatch[1].trim();
+        console.log(`   🍫 Looking for flavor: "${flavorName}"`);
+        
+        const flavorIndex = product.flavors.findIndex(f => 
+          f.name.toLowerCase() === flavorName.toLowerCase()
+        );
+        
+        if (flavorIndex !== -1) {
+          const currentStock = product.flavors[flavorIndex].stock;
+          console.log(`   Found flavor at index ${flavorIndex}, current stock: ${currentStock}`);
+          
+          if (currentStock >= quantity) {
+            product.flavors[flavorIndex].stock -= quantity;
+            await product.save();
+            console.log(`   ✅ Deducted ${quantity} from flavor stock. New stock: ${product.flavors[flavorIndex].stock}`);
+          } else {
+            console.log(`   ⚠️ Insufficient stock. Need: ${quantity}, Have: ${currentStock}`);
+          }
+        } else {
+          console.log(`   ❌ Flavor "${flavorName}" not found in product`);
+        }
+      } else if (sizeMatch && product.hasVariants && product.variants && product.variants.length > 0) {
+        const sizeValue = parseInt(sizeMatch[1]);
+        let sizeUnit = sizeMatch[2].toLowerCase();
+        if (sizeUnit === 'g') sizeUnit = 'grams';
+        
+        console.log(`   📏 Looking for variant: ${sizeValue}${sizeUnit}`);
+        
+        const variantIndex = product.variants.findIndex(v => 
+          v.size.value === sizeValue && v.size.unit === sizeUnit
+        );
+        
+        if (variantIndex !== -1) {
+          const currentStock = product.variants[variantIndex].stock;
+          console.log(`   Found variant at index ${variantIndex}, current stock: ${currentStock}`);
+          
+          if (currentStock >= quantity) {
+            product.variants[variantIndex].stock -= quantity;
+            await product.save();
+            console.log(`   ✅ Deducted ${quantity} from variant stock. New stock: ${product.variants[variantIndex].stock}`);
+          } else {
+            console.log(`   ⚠️ Insufficient stock. Need: ${quantity}, Have: ${currentStock}`);
+          }
+        } else {
+          console.log(`   ❌ Variant ${sizeValue}${sizeUnit} not found in product`);
+        }
+      } else if (product.stock !== null && product.stock >= quantity) {
+        const currentStock = product.stock;
+        console.log(`   📦 Deducting from main product stock. Current: ${currentStock}`);
+        
+        product.stock -= quantity;
+        await product.save();
+        console.log(`   ✅ Deducted ${quantity} from product stock. New stock: ${product.stock}`);
+      } else {
+        console.log(`   ⚠️ No valid stock option found or insufficient stock`);
+      }
+    } catch (error) {
+      console.error(`❌ Error deducting inventory for item ${item.itemName}:`, error);
+    }
+  }
+  
+  console.log('\n✅ Inventory deduction completed\n');
+};
 
 const createBoxPickup = async (req, res) => {
   try {
@@ -33,16 +137,20 @@ const createBoxPickup = async (req, res) => {
       createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd }
     })
 
+    const boxItems = items || subscription.currentBoxItems || [];
+
     const boxPickup = new BoxPickup({
       userId,
       subscriptionId: subscription._id,
       boxNumber: boxCountThisMonth + 1,
-      items: items || subscription.currentBoxItems || [],
+      items: boxItems,
       scheduledDate: scheduledDate || new Date(),
       notes
     })
 
     await boxPickup.save()
+
+    await deductInventory(boxItems);
 
     res.status(201).json({
       success: true,

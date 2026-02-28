@@ -12,7 +12,8 @@ const {
   adminUpgradeToTopiaCircle,
   updateBillingDate,
   updatePaymentMethod,
-  toggleSubscriptionStatus
+  toggleSubscriptionStatus,
+  updatePaymentInfo
 } = require('../controllers/subscriptionController')
 const { authenticate, authorizationRole } = require('../middlewares/authMiddleware')
 
@@ -28,5 +29,6 @@ router.post('/admin/upgrade/:userId', authenticate, authorizationRole('admin'), 
 router.put('/admin/:subscriptionId/billing-date', authenticate, authorizationRole('admin'), updateBillingDate)
 router.put('/admin/:subscriptionId/payment-method', authenticate, authorizationRole('admin'), updatePaymentMethod)
 router.put('/admin/:subscriptionId/status', authenticate, authorizationRole('admin'), toggleSubscriptionStatus)
+router.put('/admin/:id/payment-info', authenticate, authorizationRole('admin'), updatePaymentInfo)
 
 module.exports = router

@@ -6,6 +6,20 @@ const moment = require('moment-timezone');
 
 const DETROIT_TIMEZONE = 'America/Detroit';
 
+const MONTH_NAMES = {
+  'january': 1, 'jan': 1,
+  'february': 2, 'feb': 2,
+  'march': 3, 'mar': 3,
+  'april': 4, 'apr': 4,
+  'may': 5,
+  'june': 6, 'jun': 6,
+  'july': 7, 'jul': 7,
+  'august': 8, 'aug': 8,
+  'september': 9, 'sep': 9, 'sept': 9,
+  'october': 10, 'oct': 10,
+  'november': 11, 'nov': 11,
+  'december': 12, 'dec': 12
+};
 
 const getTargetUsers = async (targetAudience, customUserIds = []) => {
   let query = {};
@@ -43,65 +57,50 @@ const getTargetUsers = async (targetAudience, customUserIds = []) => {
       break;
     case 'birthday':
       const detroitNow = moment.tz(DETROIT_TIMEZONE);
-      const currentMonth = detroitNow.month() + 1; // moment months are 0-indexed
+      const currentMonth = detroitNow.month() + 1;
       const currentDay = detroitNow.date();
       
-      // Handle multiple birthday data formats
+      const monthNames = Object.keys(MONTH_NAMES).filter(name => MONTH_NAMES[name] === currentMonth);
+      
       query = {
         status: 'verified',
         phone: { $exists: true, $ne: '' },
         $and: [
-          // SMS opt-out filter
           {
             $or: [
               { smsOptOut: { $exists: false } },
               { smsOptOut: false }
             ]
           },
-          // Birthday filter
           {
             $or: [
-              // Handle numeric month/day
               {
-                'birthday.month': currentMonth,
-                'birthday.day': currentDay
+                'birthday.month': String(currentMonth),
+                'birthday.day': String(currentDay)
               },
-              // Handle string month/day (with leading zeros)
               {
                 'birthday.month': String(currentMonth).padStart(2, '0'),
                 'birthday.day': String(currentDay).padStart(2, '0')
               },
-              // Handle string month/day (without leading zeros)
+              {
+                'birthday.month': currentMonth,
+                'birthday.day': currentDay
+              },
+              ...monthNames.map(monthName => ({
+                'birthday.month': monthName,
+                'birthday.day': String(currentDay)
+              })),
+              ...monthNames.map(monthName => ({
+                'birthday.month': monthName.charAt(0).toUpperCase() + monthName.slice(1),
+                'birthday.day': String(currentDay)
+              })),
               {
                 'birthday.month': String(currentMonth),
-                'birthday.day': String(currentDay)
-              },
-              // Handle month names (January = 1, etc.)
-              {
-                'birthday.month': 'January',
                 'birthday.day': currentDay
               },
-              {
-                'birthday.month': 'january',
-                'birthday.day': currentDay
-              },
-              // Handle abbreviated month names
-              {
-                'birthday.month': 'Jan',
-                'birthday.day': currentDay
-              },
-              {
-                'birthday.month': 'jan',
-                'birthday.day': currentDay
-              },
-              // Handle string day with numeric month
               {
                 'birthday.month': currentMonth,
                 'birthday.day': String(currentDay)
-              },
-              {
-                'birthday.month': String(currentMonth),
-                'birthday.day': String(currentDay).padStart(2, '0')
               }
             ]
           }
@@ -342,55 +341,42 @@ exports.previewRecipients = async (req, res) => {
 exports.sendBirthdaySMSManually = async (req, res) => {
   try {
     const detroitNow = moment.tz(DETROIT_TIMEZONE);
-    const currentMonth = detroitNow.month() + 1; // moment months are 0-indexed
+    const currentMonth = detroitNow.month() + 1;
     const currentDay = detroitNow.date();
     
-    // Find birthday users with flexible month/day format matching
+    const monthNames = Object.keys(MONTH_NAMES).filter(name => MONTH_NAMES[name] === currentMonth);
+    
     const birthdayUsers = await User.find({
       status: 'verified',
       phone: { $exists: true, $ne: '' },
       $or: [
-        // Handle numeric month/day
         {
-          'birthday.month': currentMonth,
-          'birthday.day': currentDay
+          'birthday.month': String(currentMonth),
+          'birthday.day': String(currentDay)
         },
-        // Handle string month/day (with leading zeros)
         {
           'birthday.month': String(currentMonth).padStart(2, '0'),
           'birthday.day': String(currentDay).padStart(2, '0')
         },
-        // Handle string month/day (without leading zeros)
+        {
+          'birthday.month': currentMonth,
+          'birthday.day': currentDay
+        },
+        ...monthNames.map(monthName => ({
+          'birthday.month': monthName,
+          'birthday.day': String(currentDay)
+        })),
+        ...monthNames.map(monthName => ({
+          'birthday.month': monthName.charAt(0).toUpperCase() + monthName.slice(1),
+          'birthday.day': String(currentDay)
+        })),
         {
           'birthday.month': String(currentMonth),
-          'birthday.day': String(currentDay)
-        },
-        // Handle month names (January = 1, etc.)
-        {
-          'birthday.month': 'January',
           'birthday.day': currentDay
         },
-        {
-          'birthday.month': 'january',
-          'birthday.day': currentDay
-        },
-        // Handle abbreviated month names
-        {
-          'birthday.month': 'Jan',
-          'birthday.day': currentDay
-        },
-        {
-          'birthday.month': 'jan',
-          'birthday.day': currentDay
-        },
-        // Handle string day with numeric month
         {
           'birthday.month': currentMonth,
           'birthday.day': String(currentDay)
-        },
-        {
-          'birthday.month': String(currentMonth),
-          'birthday.day': String(currentDay).padStart(2, '0')
         }
       ]
     }).select('_id fullName phone email birthday');
@@ -507,45 +493,42 @@ exports.sendBirthdaySMSManually = async (req, res) => {
 exports.previewBirthdayUsers = async (req, res) => {
   try {
     const detroitNow = moment.tz(DETROIT_TIMEZONE);
-    const currentMonth = detroitNow.month() + 1; // moment months are 0-indexed
+    const currentMonth = detroitNow.month() + 1;
     const currentDay = detroitNow.date();
+    
+    const monthNames = Object.keys(MONTH_NAMES).filter(name => MONTH_NAMES[name] === currentMonth);
     
     const birthdayUsers = await User.find({
       status: 'verified',
       phone: { $exists: true, $ne: '' },
       $or: [
-        // Handle numeric month/day
-        {
-          'birthday.month': currentMonth,
-          'birthday.day': currentDay
-        },
-        // Handle string month/day (with leading zeros)
-        {
-          'birthday.month': String(currentMonth).padStart(2, '0'),
-          'birthday.day': String(currentDay).padStart(2, '0')
-        },
-        // Handle string month/day (without leading zeros)
         {
           'birthday.month': String(currentMonth),
           'birthday.day': String(currentDay)
         },
-      
         {
-          'birthday.month': 'January',
+          'birthday.month': String(currentMonth).padStart(2, '0'),
+          'birthday.day': String(currentDay).padStart(2, '0')
+        },
+        {
+          'birthday.month': currentMonth,
+          'birthday.day': currentDay
+        },
+        ...monthNames.map(monthName => ({
+          'birthday.month': monthName,
+          'birthday.day': String(currentDay)
+        })),
+        ...monthNames.map(monthName => ({
+          'birthday.month': monthName.charAt(0).toUpperCase() + monthName.slice(1),
+          'birthday.day': String(currentDay)
+        })),
+        {
+          'birthday.month': String(currentMonth),
           'birthday.day': currentDay
         },
         {
-          'birthday.month': 'january',
-          'birthday.day': currentDay
-        },
-       
-        {
-          'birthday.month': 'Jan',
-          'birthday.day': currentDay
-        },
-        {
-          'birthday.month': 'jan',
-          'birthday.day': currentDay
+          'birthday.month': currentMonth,
+          'birthday.day': String(currentDay)
         }
       ]
     }).select('fullName phone email birthday');
@@ -815,3 +798,79 @@ exports.previewTopiaMembers = async (req, res) => {
   }
 };
 
+exports.debugBirthdayData = async (req, res) => {
+  try {
+    const detroitNow = moment.tz(DETROIT_TIMEZONE);
+    const currentMonth = detroitNow.month() + 1;
+    const currentDay = detroitNow.date();
+    
+    const allUsers = await User.find({
+      status: 'verified',
+      phone: { $exists: true, $ne: '' }
+    }).select('fullName phone birthday').limit(50);
+    
+    const monthNames = Object.keys(MONTH_NAMES).filter(name => MONTH_NAMES[name] === currentMonth);
+    
+    const birthdayMatches = await User.find({
+      status: 'verified',
+      phone: { $exists: true, $ne: '' },
+      $or: [
+        {
+          'birthday.month': String(currentMonth),
+          'birthday.day': String(currentDay)
+        },
+        {
+          'birthday.month': String(currentMonth).padStart(2, '0'),
+          'birthday.day': String(currentDay).padStart(2, '0')
+        },
+        {
+          'birthday.month': currentMonth,
+          'birthday.day': currentDay
+        },
+        ...monthNames.map(monthName => ({
+          'birthday.month': monthName,
+          'birthday.day': String(currentDay)
+        })),
+        ...monthNames.map(monthName => ({
+          'birthday.month': monthName.charAt(0).toUpperCase() + monthName.slice(1),
+          'birthday.day': String(currentDay)
+        })),
+        {
+          'birthday.month': String(currentMonth),
+          'birthday.day': currentDay
+        },
+        {
+          'birthday.month': currentMonth,
+          'birthday.day': String(currentDay)
+        }
+      ]
+    }).select('fullName phone birthday');
+    
+    res.status(200).json({
+      success: true,
+      detroitTime: detroitNow.format('YYYY-MM-DD HH:mm:ss z'),
+      currentMonth,
+      currentDay,
+      sampleUsers: allUsers.map(u => ({
+        name: u.fullName,
+        phone: u.phone,
+        birthday: u.birthday,
+        monthType: typeof u.birthday?.month,
+        dayType: typeof u.birthday?.day
+      })),
+      todayMatches: birthdayMatches.map(u => ({
+        name: u.fullName,
+        phone: u.phone,
+        birthday: u.birthday
+      })),
+      matchCount: birthdayMatches.length
+    });
+  } catch (error) {
+    console.error('Error in debugBirthdayData:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to debug birthday data',
+      error: error.message
+    });
+  }
+};

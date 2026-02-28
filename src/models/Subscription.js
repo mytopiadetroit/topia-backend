@@ -78,6 +78,14 @@ const subscriptionSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  paymentInfo: {
+    cardHolderName: String,
+    cardLastFour: String,
+    cardBrand: String,
+    expiryMonth: String,
+    expiryYear: String,
+    billingZip: String
+  },
   selectedProducts: [{
     productId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -37,6 +37,9 @@ router.post('/send-to-topia-members', smsController.sendToTopiaMembers);
 // Preview Topia Circle members
 router.get('/preview-topia-members', smsController.previewTopiaMembers);
 
+// Debug birthday data
+router.get('/debug-birthday-data', smsController.debugBirthdayData);
+
 // Get SMS details (must be last to avoid route conflicts)
 router.get('/:id', smsController.getSMSDetails);
 
