@@ -40,10 +40,10 @@ exports.getReviewTagById = async (req, res) => {
 
 exports.updateReviewTag = async (req, res) => {
   try {
-    const { label, isActive } = req.body || {}
+    const { label, isActive, tooltip } = req.body || {}
     const tag = await ReviewTag.findByIdAndUpdate(
       req.params.id,
-      { label, isActive },
+      { label, isActive, tooltip },
       { new: true, runValidators: true },
     )
     if (!tag)

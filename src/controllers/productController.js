@@ -221,7 +221,7 @@ exports.getAllProducts = async (req, res) => {
     
     let query = Product.find(filter)
       .populate('category', 'category')
-      .populate('reviewTags', 'label isActive');
+      .populate('reviewTags', 'label isActive tooltip');
     
    
     if (limit) {
@@ -269,7 +269,7 @@ exports.getAllProductsNoPagination = async (req, res) => {
     
     const products = await Product.find(filter)
       .populate('category', 'category')
-      .populate('reviewTags', 'label isActive')
+      .populate('reviewTags', 'label isActive tooltip')
       .sort({ order: 1, createdAt: -1 });
     
     res.status(200).json({
@@ -289,7 +289,7 @@ exports.getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
       .populate('category', 'category')
-      .populate('reviewTags', 'label isActive')
+      .populate('reviewTags', 'label isActive tooltip')
 
     if (!product) {
       return res.status(404).json({
@@ -339,7 +339,7 @@ exports.getProductsByCategory = async (req, res) => {
 
     let query = Product.find(filter)
       .populate('category', 'category')
-      .populate('reviewTags', 'label isActive')
+      .populate('reviewTags', 'label isActive tooltip')
       .sort({ order: 1 }) // Sort by order field in ascending order
       .skip(skip)
       .limit(limitNumber)
@@ -390,7 +390,7 @@ exports.getRelatedProducts = async (req, res) => {
       hasStock: true // Only show products that are in stock
     })
       .populate('category', 'category')
-      .populate('reviewTags', 'label isActive')
+      .populate('reviewTags', 'label isActive tooltip')
       .sort({ order: 1 }) // Sort by order field in ascending order
       .limit(parseInt(limit, 10))
 
