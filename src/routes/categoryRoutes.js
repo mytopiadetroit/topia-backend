@@ -13,6 +13,8 @@ router.put('/categories/:id',
   categoryController.editCategory
 )
 
+router.put('/categories/:id/order', categoryController.updateCategoryOrder)
+
 router.delete('/categories/:id', categoryController.deleteCategory)
 router.get('/categories', categoryController.getAllCategories)
 
