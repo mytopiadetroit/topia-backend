@@ -387,7 +387,8 @@ exports.getRelatedProducts = async (req, res) => {
     const relatedProducts = await Product.find({
       category: currentProduct.category,
       _id: { $ne: id }, // Exclude current product
-      hasStock: true // Only show products that are in stock
+      hasStock: true, // Only show products that are in stock
+      isActive: true // Only show active products
     })
       .populate('category', 'category')
       .populate('reviewTags', 'label isActive tooltip')
