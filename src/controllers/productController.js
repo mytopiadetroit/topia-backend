@@ -71,6 +71,28 @@ exports.createProduct = async (req, res) => {
       productData.intensity = 5 // Default value if not provided
     }
 
+    // Parse totalWeight, totalPieces and perPiece if provided
+    if (productData.totalWeight !== undefined && productData.totalWeight !== null && productData.totalWeight !== '') {
+      productData.totalWeight = String(productData.totalWeight).trim()
+    }
+    if (productData.totalPieces !== undefined && productData.totalPieces !== null && productData.totalPieces !== '') {
+      productData.totalPieces = Number(productData.totalPieces)
+    }
+    if (productData.perPiece !== undefined && productData.perPiece !== null && productData.perPiece !== '') {
+      productData.perPiece = Number(productData.perPiece)
+    }
+    
+    // Parse toggle values for showing weight and pieces
+    if (productData.showTotalWeight !== undefined) {
+      productData.showTotalWeight = productData.showTotalWeight === 'true' || productData.showTotalWeight === true
+    }
+    if (productData.showTotalPieces !== undefined) {
+      productData.showTotalPieces = productData.showTotalPieces === 'true' || productData.showTotalPieces === true
+    }
+    if (productData.showPerPiece !== undefined) {
+      productData.showPerPiece = productData.showPerPiece === 'true' || productData.showPerPiece === true
+    }
+
     // Parse allergenInfo if provided
     console.log('Original allergenInfo in createProduct:', productData.allergenInfo);
     if (productData.allergenInfo) {
@@ -489,6 +511,28 @@ exports.updateProduct = async (req, res) => {
           .map((s) => s.trim())
           .filter(Boolean)
       }
+    }
+
+    // Parse totalWeight, totalPieces and perPiece if provided
+    if (productData.totalWeight !== undefined && productData.totalWeight !== null && productData.totalWeight !== '') {
+      productData.totalWeight = String(productData.totalWeight).trim()
+    }
+    if (productData.totalPieces !== undefined && productData.totalPieces !== null && productData.totalPieces !== '') {
+      productData.totalPieces = Number(productData.totalPieces)
+    }
+    if (productData.perPiece !== undefined && productData.perPiece !== null && productData.perPiece !== '') {
+      productData.perPiece = Number(productData.perPiece)
+    }
+    
+    // Parse toggle values for showing weight and pieces
+    if (productData.showTotalWeight !== undefined) {
+      productData.showTotalWeight = productData.showTotalWeight === 'true' || productData.showTotalWeight === true
+    }
+    if (productData.showTotalPieces !== undefined) {
+      productData.showTotalPieces = productData.showTotalPieces === 'true' || productData.showTotalPieces === true
+    }
+    if (productData.showPerPiece !== undefined) {
+      productData.showPerPiece = productData.showPerPiece === 'true' || productData.showPerPiece === true
     }
 
     // Parse allergenInfo if provided

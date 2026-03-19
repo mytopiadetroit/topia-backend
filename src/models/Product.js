@@ -20,6 +20,29 @@ const ProductSchema = new mongoose.Schema(
     short_description: {
       type: String,
     },
+    totalWeight: {
+      type: String,
+    },
+    totalPieces: {
+      type: Number,
+      min: [0, 'Total pieces cannot be negative'],
+    },
+    perPiece: {
+      type: Number,
+      min: [0, 'Per piece value cannot be negative'],
+    },
+    showTotalWeight: {
+      type: Boolean,
+      default: false,
+    },
+    showTotalPieces: {
+      type: Boolean,
+      default: false,
+    },
+    showPerPiece: {
+      type: Boolean,
+      default: false,
+    },
     description: {
       main: {
         type: String,
