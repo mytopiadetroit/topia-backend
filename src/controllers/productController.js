@@ -192,6 +192,27 @@ exports.createProduct = async (req, res) => {
       }
     }
 
+    // Parse strains if provided
+    if (productData.strains) {
+      try {
+        if (typeof productData.strains === 'string') {
+          productData.strains = JSON.parse(productData.strains)
+        }
+        if (Array.isArray(productData.strains)) {
+          productData.strains = productData.strains.map(s => ({
+            name: String(s.name || '').trim(),
+            price: Number(s.price || 0),
+            stock: Number(s.stock || 0),
+            sku: s.sku ? String(s.sku).trim() : undefined,
+            isActive: s.isActive !== undefined ? Boolean(s.isActive) : true
+          })).filter(s => s.name) // Remove empty strain names
+        }
+      } catch (error) {
+        console.error('Error parsing strains:', error)
+        productData.strains = []
+      }
+    }
+
     // Set hasVariants flag
     if (productData.hasVariants === 'true' || productData.hasVariants === true) {
       productData.hasVariants = true
@@ -682,6 +703,51 @@ exports.updateProduct = async (req, res) => {
         console.error('Error parsing flavors:', error);
         // Don't override existing flavors if there's an error
         delete productData.flavors;
+      }
+    }
+
+    // Parse strains if provided
+    if (productData.strains) {
+      try {
+        if (typeof productData.strains === 'string') {
+          productData.strains = JSON.parse(productData.strains)
+        }
+        if (Array.isArray(productData.strains)) {
+          productData.strains = productData.strains.map(s => ({
+            name: String(s.name || '').trim(),
+            price: Number(s.price || 0),
+            stock: Number(s.stock || 0),
+            sku: s.sku ? String(s.sku).trim() : undefined,
+            isActive: s.isActive !== undefined ? Boolean(s.isActive) : true
+          })).filter(s => s.name) // Remove empty strain names
+          
+          // If this is an update, preserve existing strains that aren't being modified
+          if (req.params.id) {
+            const existingProduct = await Product.findById(req.params.id);
+            if (existingProduct && existingProduct.strains) {
+              const existingStrains = existingProduct.strains.reduce((acc, strain) => {
+                acc[strain.name] = strain;
+                return acc;
+              }, {});
+              
+              productData.strains = productData.strains.map(strain => {
+                // If strain exists, preserve its _id and merge with updates
+                if (existingStrains[strain.name]) {
+                  return {
+                    ...existingStrains[strain.name].toObject(),
+                    ...strain,
+                    _id: existingStrains[strain.name]._id
+                  };
+                }
+                return strain;
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing strains:', error);
+        // Don't override existing strains if there's an error
+        delete productData.strains;
       }
     }
 

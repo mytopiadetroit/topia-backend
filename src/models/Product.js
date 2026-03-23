@@ -180,6 +180,35 @@ const ProductSchema = new mongoose.Schema(
         }
       },
     ],
+   
+    strains: [
+      {
+        name: {
+          type: String,
+          required: [true, 'Strain name is required'],
+          trim: true,
+        },
+        price: {
+          type: Number,
+          required: [true, 'Strain price is required'],
+          min: [0, 'Strain price cannot be negative'],
+        },
+        stock: {
+          type: Number,
+          required: [true, 'Strain stock is required'],
+          min: [0, 'Stock cannot be negative'],
+          default: 0
+        },
+        sku: {
+          type: String,
+          trim: true,
+        },
+        isActive: {
+          type: Boolean,
+          default: true
+        }
+      },
+    ],
     // Flag to determine if product uses variants
     hasVariants: {
       type: Boolean,

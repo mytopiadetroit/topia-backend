@@ -27,6 +27,7 @@ const smsReplyRoutes = require('./routes/smsReplyRoutes')
 const subscriptionRoutes = require('./routes/subscriptionRoutes')
 const boxPickupRoutes = require('./routes/boxPickupRoutes')
 const pendingChangeRoutes = require('./routes/pendingChangeRoutes')
+const googleReviewsRoutes = require('./routes/googleReviewsRoutes')
 const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
@@ -48,6 +49,7 @@ module.exports = (app) => {
   app.use('/api/visitors', visitorRoutes)
   app.use('/api/deals', dealRoutes)
   app.use('/api/subscriptions', subscriptionRoutes)
+  app.use('/api/google-reviews', googleReviewsRoutes)
   app.get('/api/pagesetting', getAllsettingImages)
   
   // Protected routes - authentication required
