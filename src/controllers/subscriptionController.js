@@ -69,10 +69,16 @@ const createSubscription = async (req, res) => {
           // Regular product
           const product = await Product.findById(productSelection)
           if (product) {
+            let productPrice = product.price
+            if (!productPrice && product.hasVariants && product.variants && product.variants.length > 0) {
+              const variantPrices = product.variants.map(v => v.memberPrice || v.price || 0).filter(p => p > 0)
+              productPrice = variantPrices.length > 0 ? Math.min(...variantPrices) : 0
+            }
+            if (!productPrice && product.memberPrice) productPrice = product.memberPrice
             processedProducts.push({
               productId: product._id,
               productName: product.name,
-              productPrice: product.price,
+              productPrice: productPrice || 0,
               type: 'product'
             })
           }
@@ -220,10 +226,16 @@ const updateSubscription = async (req, res) => {
           // Regular product
           const product = await Product.findById(productSelection)
           if (product) {
+            let productPrice = product.price
+            if (!productPrice && product.hasVariants && product.variants && product.variants.length > 0) {
+              const variantPrices = product.variants.map(v => v.memberPrice || v.price || 0).filter(p => p > 0)
+              productPrice = variantPrices.length > 0 ? Math.min(...variantPrices) : 0
+            }
+            if (!productPrice && product.memberPrice) productPrice = product.memberPrice
             processedProducts.push({
               productId: product._id,
               productName: product.name,
-              productPrice: product.price,
+              productPrice: productPrice || 0,
               type: 'product'
             })
           }
@@ -261,39 +273,26 @@ const cancelSubscription = async (req, res) => {
       })
     }
 
-    const subscriptionStartDate = new Date(subscription.startDate)
-    const currentDate = new Date()
-    const monthsDiff = (currentDate.getFullYear() - subscriptionStartDate.getFullYear()) * 12 + 
-                      (currentDate.getMonth() - subscriptionStartDate.getMonth())
-
-    const settings = await SubscriptionSettings.findOne() || new SubscriptionSettings()
-    
-    if (monthsDiff < settings.minimumSubscriptionMonths) {
+    if (!reason || !reason.trim()) {
       return res.status(400).json({
         success: false,
-        message: `Cannot cancel subscription before ${settings.minimumSubscriptionMonths} months`
+        message: 'Cancellation reason is required'
       })
     }
 
-    subscription.status = 'cancelled'
-    subscription.cancellationDate = new Date()
-    subscription.cancellationReason = reason || 'User requested cancellation'
-    await subscription.save()
-
-    await User.findByIdAndUpdate(userId, {
-      subscriptionStatus: 'cancelled',
-      isTopiaCircleMember: false
-    })
+    subscription.cancellationReason = reason
+    subscription.cancellationRequestedAt = new Date()
+    await subscription.save({ validateBeforeSave: false })
 
     res.json({
       success: true,
-      message: 'Subscription cancelled successfully'
+      message: 'Cancellation request submitted. Admin will review and process it.'
     })
   } catch (error) {
     console.error('Error cancelling subscription:', error)
     res.status(500).json({
       success: false,
-      message: 'Failed to cancel subscription'
+      message: 'Failed to submit cancellation request'
     })
   }
 }
@@ -498,17 +497,6 @@ const adminUpgradeToTopiaCircle = async (req, res) => {
   }
 }
 
-module.exports = {
-  createSubscription,
-  getSubscription,
-  updateSubscription,
-  cancelSubscription,
-  getSubscriptionSettings,
-  updateSubscriptionSettings,
-  getAllSubscriptions,
-  updateSubscriptionAdmin,
-  adminUpgradeToTopiaCircle
-}
 const updateBillingDate = async (req, res) => {
   try {
     const { subscriptionId } = req.params;
@@ -726,6 +714,32 @@ const updatePaymentInfo = async (req, res) => {
   }
 };
 
+const updatePaymentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paymentStatus } = req.body;
+
+    if (!['pending', 'paid', 'declined'].includes(paymentStatus)) {
+      return res.status(400).json({ success: false, message: 'Invalid payment status' });
+    }
+
+    const subscription = await Subscription.findByIdAndUpdate(
+      id,
+      { paymentStatus },
+      { new: true, runValidators: false }
+    ).populate('userId', 'fullName email phone');
+
+    if (!subscription) {
+      return res.status(404).json({ success: false, message: 'Subscription not found' });
+    }
+
+    res.json({ success: true, data: subscription });
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createSubscription,
   getSubscription,
@@ -739,5 +753,7 @@ module.exports = {
   updateBillingDate,
   updatePaymentMethod,
   toggleSubscriptionStatus,
-  updatePaymentInfo
+  updatePaymentInfo,
+  updatePaymentStatus
 };
+

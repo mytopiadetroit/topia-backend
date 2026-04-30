@@ -30,12 +30,14 @@ const pendingChangeRoutes = require('./routes/pendingChangeRoutes')
 const googleReviewsRoutes = require('./routes/googleReviewsRoutes')
 const aboutUsRoutes = require('./routes/aboutUsRoutes')
 const monthlyBoxFAQRoutes = require('./routes/monthlyBoxFAQRoutes')
+const billingFAQRoutes = require('./routes/billingFAQRoutes')
 const { getAllsettingImages } = require('./controllers/settingController')
 
 module.exports = (app) => {
   // Public routes - no authentication required
   app.use('/api/about-us', aboutUsRoutes)
   app.use('/api/monthly-box-faqs', monthlyBoxFAQRoutes)
+  app.use('/api/billing-faqs', billingFAQRoutes)
   app.use('/api/shop-settings', shopSettingsRoutes)
   app.use('/api/homepage-settings', homepageSettingsRoutes)
   app.use('/api/tax', taxRoutes)

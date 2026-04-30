@@ -13,7 +13,8 @@ const {
   updateBillingDate,
   updatePaymentMethod,
   toggleSubscriptionStatus,
-  updatePaymentInfo
+  updatePaymentInfo,
+  updatePaymentStatus
 } = require('../controllers/subscriptionController')
 const { authenticate, authorizationRole } = require('../middlewares/authMiddleware')
 
@@ -30,5 +31,6 @@ router.put('/admin/:subscriptionId/billing-date', authenticate, authorizationRol
 router.put('/admin/:subscriptionId/payment-method', authenticate, authorizationRole('admin'), updatePaymentMethod)
 router.put('/admin/:subscriptionId/status', authenticate, authorizationRole('admin'), toggleSubscriptionStatus)
 router.put('/admin/:id/payment-info', authenticate, authorizationRole('admin'), updatePaymentInfo)
+router.put('/admin/:id/payment-status', authenticate, authorizationRole('admin'), updatePaymentStatus)
 
 module.exports = router

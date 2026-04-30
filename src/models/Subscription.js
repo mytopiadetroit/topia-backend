@@ -12,6 +12,11 @@ const subscriptionSchema = new mongoose.Schema({
     enum: ['active', 'cancelled', 'expired', 'paused'],
     default: 'active'
   },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'paid', 'declined'],
+    default: 'pending'
+  },
   startDate: {
     type: Date,
     default: Date.now
@@ -117,6 +122,10 @@ const subscriptionSchema = new mongoose.Schema({
   },
   cancellationReason: {
     type: String
+  },
+  cancellationRequestedAt: {
+    type: Date,
+    default: null
   },
   createdAt: {
     type: Date,

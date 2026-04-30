@@ -178,7 +178,19 @@ const reviewChange = async (req, res) => {
             updateData[field] = pendingChange.requestedData[field]
           }
         })
-        await Subscription.findOneAndUpdate({ userId: pendingChange.userId }, updateData)
+
+        if (pendingChange.requestedData.action === 'cancel') {
+          updateData.status = 'cancelled'
+          updateData.cancellationDate = new Date()
+          updateData.cancellationReason = pendingChange.requestedData.reason || 'User requested cancellation'
+          await Subscription.findOneAndUpdate({ userId: pendingChange.userId }, updateData)
+          await User.findByIdAndUpdate(pendingChange.userId, {
+            subscriptionStatus: 'cancelled',
+            isTopiaCircleMember: false
+          })
+        } else {
+          await Subscription.findOneAndUpdate({ userId: pendingChange.userId }, updateData)
+        }
       }
     }
 
