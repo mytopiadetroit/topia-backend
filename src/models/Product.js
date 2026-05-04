@@ -218,6 +218,42 @@ const ProductSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    aboutThisStrain: {
+      type: String,
+      default: '',
+    },
+    whatToExpect: {
+      type: [String],
+      default: [],
+    },
+    bestFor: {
+      type: [String],
+      default: [],
+    },
+    strainProfile: {
+      species: { type: String, default: '' },
+      lineage: { type: String, default: '' },
+      mentalTone: { type: String, default: '' },
+      visualStrength: { type: String, default: '' },
+      onset: { type: String, default: '' },
+      visualDescription: { type: String, default: '' },
+    },
+    ingredients: {
+      infusedWith: { type: String, default: '' },
+      infusedWithDescription: { type: String, default: '' },
+      contentTotal: { type: String, default: '' },
+      contentPerPiece: { type: String, default: '' },
+      contentPieces: { type: String, default: '' },
+      ingredientsList: { type: String, default: '' },
+      suggestedUse: { type: String, default: '' },
+      dietaryImages: {
+        type: [{
+          image: { type: String, default: '' },
+          label: { type: String, default: '' },
+        }],
+        default: [],
+      },
+    },
     createdAt: {
       type: Date,
       default: Date.now,

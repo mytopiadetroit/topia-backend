@@ -220,6 +220,42 @@ exports.createProduct = async (req, res) => {
       productData.hasVariants = false
     }
 
+    // Parse whatToExpect and bestFor arrays
+    if (productData.whatToExpect) {
+      try {
+        if (typeof productData.whatToExpect === 'string') {
+          productData.whatToExpect = JSON.parse(productData.whatToExpect)
+        }
+        if (!Array.isArray(productData.whatToExpect)) productData.whatToExpect = []
+      } catch (e) { productData.whatToExpect = [] }
+    }
+    if (productData.bestFor) {
+      try {
+        if (typeof productData.bestFor === 'string') {
+          productData.bestFor = JSON.parse(productData.bestFor)
+        }
+        if (!Array.isArray(productData.bestFor)) productData.bestFor = []
+      } catch (e) { productData.bestFor = [] }
+    }
+
+    // Parse strainProfile object
+    if (productData.strainProfile) {
+      try {
+        if (typeof productData.strainProfile === 'string') {
+          productData.strainProfile = JSON.parse(productData.strainProfile)
+        }
+      } catch (e) { productData.strainProfile = {} }
+    }
+
+    // Parse ingredients object
+    if (productData.ingredients) {
+      try {
+        if (typeof productData.ingredients === 'string') {
+          productData.ingredients = JSON.parse(productData.ingredients)
+        }
+      } catch (e) { productData.ingredients = {} }
+    }
+
     console.log('Final product data before save in createProduct:', productData);
     const product = new Product(productData)
     await product.save()
@@ -756,6 +792,42 @@ exports.updateProduct = async (req, res) => {
       productData.hasVariants = true
     } else if (productData.hasVariants === 'false' || productData.hasVariants === false) {
       productData.hasVariants = false
+    }
+
+    // Parse whatToExpect and bestFor arrays
+    if (productData.whatToExpect) {
+      try {
+        if (typeof productData.whatToExpect === 'string') {
+          productData.whatToExpect = JSON.parse(productData.whatToExpect)
+        }
+        if (!Array.isArray(productData.whatToExpect)) productData.whatToExpect = []
+      } catch (e) { productData.whatToExpect = [] }
+    }
+    if (productData.bestFor) {
+      try {
+        if (typeof productData.bestFor === 'string') {
+          productData.bestFor = JSON.parse(productData.bestFor)
+        }
+        if (!Array.isArray(productData.bestFor)) productData.bestFor = []
+      } catch (e) { productData.bestFor = [] }
+    }
+
+    // Parse strainProfile object
+    if (productData.strainProfile) {
+      try {
+        if (typeof productData.strainProfile === 'string') {
+          productData.strainProfile = JSON.parse(productData.strainProfile)
+        }
+      } catch (e) { productData.strainProfile = {} }
+    }
+
+    // Parse ingredients object
+    if (productData.ingredients) {
+      try {
+        if (typeof productData.ingredients === 'string') {
+          productData.ingredients = JSON.parse(productData.ingredients)
+        }
+      } catch (e) { productData.ingredients = {} }
     }
 
     console.log('Final product data before update in updateProduct:', productData);
